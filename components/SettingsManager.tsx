@@ -1,14 +1,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { Settings, CreditCard, Shield, Info, ExternalLink, Save, CheckCircle, AlertCircle, Database, Globe } from 'lucide-react';
+import { ConfigItem } from '../types';
 import { updateSheetRow } from '../services/sheetsService';
-
-interface ConfigItem {
-    key: string;
-    value: string;
-    description: string;
-    category: string;
-}
 
 interface SettingsManagerProps {
     configs: ConfigItem[];

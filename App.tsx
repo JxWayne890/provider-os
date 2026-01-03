@@ -11,28 +11,7 @@ import ProjectsManager from './components/ProjectsManager';
 import OperationsManager from './components/OperationsManager';
 import SettingsManager from './components/SettingsManager';
 import { fetchSheetData, updateSheetRow } from './services/sheetsService';
-import { Lead, Client, Payment, Session, DealStage, ClientStatus, Deal, Project, Task, Metric } from './types';
-
-// Tab names used in Google Sheets
-const TABS = {
-  LEADS: 'LEADS',
-  CLIENTS: 'CLIENTS',
-  DEALS: 'DEALS',
-  PAYMENTS: 'PAYMENTS',
-  SESSIONS: 'SESSIONS',
-  PROJECTS: 'PROJECTS',
-  TASKS: 'TASKS',
-  METRICS: 'METRICS',
-  CONFIG: 'CONFIG'
-};
-
-interface ConfigItem {
-  key?: string; // For compatibility with older scripts if any
-  settingKey: string;
-  value: string;
-  description: string;
-  category: string;
-}
+import { Lead, Client, Payment, Session, DealStage, ClientStatus, Deal, Project, Task, Metric, ConfigItem } from './types';
 
 type Tab = 'dashboard' | 'leads' | 'deals' | 'clients' | 'payments' | 'sessions' | 'projects' | 'tasks' | 'settings';
 
@@ -73,6 +52,7 @@ const App: React.FC = () => {
 
       if (configsRaw) {
         setConfigs(configsRaw.map((row: any) => ({
+          key: row[0],
           settingKey: row[0],
           value: row[1],
           description: row[2],

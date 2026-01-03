@@ -129,10 +129,20 @@ export interface Task {
 
 export interface Metric {
   date: string;
-  totalRevenue: number;
-  leadCount: number;
+  revenue: number;
+  leads: number;
+  totalRevenue?: number;
+  leadCount?: number;
   conversionRate: number;
   activeProjects: number;
   pendingTasks: number;
   healthScore: number;
+}
+
+export interface ConfigItem {
+  key: string;
+  settingKey?: string; // Optional for backward compatibility
+  value: string;
+  description: string;
+  category: string;
 }
