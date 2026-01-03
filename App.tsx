@@ -27,6 +27,7 @@ const TABS = {
 };
 
 interface ConfigItem {
+  key?: string; // For compatibility with older scripts if any
   settingKey: string;
   value: string;
   description: string;
