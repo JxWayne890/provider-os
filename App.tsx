@@ -13,6 +13,19 @@ import SettingsManager from './components/SettingsManager';
 import { fetchSheetData, updateSheetRow } from './services/sheetsService';
 import { Lead, Client, Payment, Session, DealStage, ClientStatus, Deal, Project, Task, Metric, ConfigItem } from './types';
 
+// Tab names used in Google Sheets
+const TABS = {
+  LEADS: 'LEADS',
+  CLIENTS: 'CLIENTS',
+  DEALS: 'DEALS',
+  PAYMENTS: 'PAYMENTS',
+  SESSIONS: 'SESSIONS',
+  PROJECTS: 'PROJECTS',
+  TASKS: 'TASKS',
+  METRICS: 'METRICS',
+  CONFIG: 'CONFIG'
+};
+
 type Tab = 'dashboard' | 'leads' | 'deals' | 'clients' | 'payments' | 'sessions' | 'projects' | 'tasks' | 'settings';
 
 const App: React.FC = () => {
