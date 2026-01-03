@@ -1,0 +1,151 @@
+
+import React from 'react';
+import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
+import { TrendingUp, Users, Target, ArrowUpRight, Sparkles, ChevronRight, CreditCard, CheckCircle } from 'lucide-react';
+import { Lead, Client, Payment, Metric, ClientStatus } from '../types';
+
+interface DashboardProps {
+  leads: Lead[];
+  clients: Client[];
+  payments: Payment[];
+  metrics: Metric[];
+  configs: any[];
+}
+
+const Dashboard: React.FC<DashboardProps> = ({ leads, clients, payments, metrics, configs }) => {
+  const businessName = configs.find(c => c.settingKey === 'business_name')?.value || 'The Provider';
+  const stripeKey = configs.find(c => c.settingKey === 'stripe_api_key')?.value;
+
+  const totalRevenue = payments.reduce((sum, p) => p.status === 'Paid' ? sum + p.amount : sum, 0);
+  const activeClients = clients.filter(c => c.status === ClientStatus.ACTIVE).length;
+  const leadCount = leads.length;
+
+  // Chart data mapping
+  const chartData = metrics.map(m => ({
+    name: m.date,
+    revenue: m.totalRevenue,
+    leads: m.leadCount
+  }));
+
+  if (!stripeKey) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 animate-reveal">
+        <div className="w-24 h-24 luminous-card flex items-center justify-center mb-8 border-[#B8860B]/20 bg-white">
+          <CreditCard size={40} className="text-[#B8860B]" />
+        </div>
+        <h2 className="text-4xl font-serif font-bold text-[#1D1D1F] mb-4 text-center">Your Financial Hub Awaits</h2>
+        <p className="text-lg text-[#6E6E73] max-w-md text-center mb-10 leading-relaxed font-sans">
+          Connect your Stripe account to unlock deep historical insights, revenue velocity charts, and AI-powered fiscal auditing.
+        </p>
+        <button className="px-10 py-4 luminous-button-gold rounded-2xl text-lg font-bold">
+          Connect Stripe System
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-10 animate-reveal pb-20">
+      <header>
+        <h1 className="text-5xl font-serif font-bold text-[#1D1D1F] tracking-tight">{businessName}</h1>
+        <p className="text-[#86868B] mt-2 font-medium tracking-wide uppercase text-xs">Operational Intelligence Dashboard</p>
+      </header>
+
+      {/* KPI Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {[
+          { label: 'Total Revenue', value: `$${totalRevenue.toLocaleString()}`, icon: TrendingUp, color: 'text-[#B8860B]' },
+          { label: 'Active Partnerships', value: activeClients, icon: Users, color: 'text-[#0066CC]' },
+          { label: 'Growth Pipeline', value: leadCount, icon: Target, color: 'text-[#1D9D60]' }
+        ].map((kpi, idx) => (
+          <div key={idx} className="luminous-card p-8 group hover:border-[#B8860B]/30 transition-all duration-500 bg-white/70" style={{ animationDelay: `${idx * 0.1}s` }}>
+            <div className="flex justify-between items-start mb-6">
+              <div className={`p-3 rounded-2xl bg-white shadow-sm border border-black/5 ${kpi.color}`}>
+                <kpi.icon size={24} />
+              </div>
+              <span className="text-[10px] font-bold text-[#86868B] uppercase tracking-[0.2em]">{kpi.label}</span>
+            </div>
+            <h3 className="text-4xl font-serif font-bold text-[#1D1D1F]">{kpi.value}</h3>
+            <div className="mt-4 flex items-center gap-2 text-xs font-bold text-[#1D9D60]">
+              <ArrowUpRight size={14} />
+              <span>+12.4% vs prev period</span>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* Main Chart */}
+        <div className="lg:col-span-2 luminous-card p-10 h-[500px] bg-white">
+          <div className="flex justify-between items-center mb-10">
+            <div>
+              <h3 className="text-2xl font-serif font-bold text-[#1D1D1F]">Revenue Velocity</h3>
+              <p className="text-sm text-[#86868B]">Real-time performance performance vs projection</p>
+            </div>
+            <div className="flex gap-2">
+              <button className="px-4 py-2 bg-[#F5F5F7] text-[#1D1D1F] text-xs font-bold rounded-lg border border-black/5">Yearly</button>
+              <button className="px-4 py-2 bg-white text-[#B8860B] text-xs font-bold rounded-lg border border-[#B8860B]/20 shadow-sm">Monthly</button>
+            </div>
+          </div>
+          <div className="h-[320px] w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={chartData}>
+                <defs>
+                  <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#B8860B" stopOpacity={0.1} />
+                    <stop offset="95%" stopColor="#B8860B" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <XAxis dataKey="name" stroke="#86868B" fontSize={11} tickLine={false} axisLine={false} />
+                <YAxis stroke="#86868B" fontSize={11} tickLine={false} axisLine={false} tickFormatter={(v) => `$${v}`} />
+                <Tooltip
+                  contentStyle={{ backgroundColor: '#FFF', border: '1px solid #B8860B20', borderRadius: '16px', boxShadow: '0 10px 30px rgba(0,0,0,0.05)' }}
+                  itemStyle={{ color: '#1D1D1F', fontWeight: 'bold' }}
+                />
+                <Area type="monotone" dataKey="revenue" stroke="#B8860B" strokeWidth={3} fillOpacity={1} fill="url(#colorRev)" />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        {/* AI Consultant */}
+        <div className="luminous-card p-8 border-[#B8860B]/10 relative overflow-hidden bg-white/80">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-[#B8860B]/5 blur-3xl rounded-full"></div>
+          <div className="flex items-center gap-3 mb-8">
+            <div className="w-12 h-12 rounded-2xl bg-[#B8860B]/10 flex items-center justify-center border border-[#B8860B]/20">
+              <Sparkles className="text-[#B8860B]" size={24} />
+            </div>
+            <div>
+              <h3 className="text-xl font-serif font-bold text-[#1D1D1F]">AI Consultant</h3>
+              <p className="text-[10px] text-[#B8860B] font-bold uppercase tracking-widest">Active Intelligence</p>
+            </div>
+          </div>
+
+          <div className="space-y-6">
+            <div className="p-5 rounded-2xl bg-[#F5F5F7] border border-black/5 relative shadow-sm">
+              <p className="text-sm text-[#1D1D1F] leading-relaxed italic font-serif">
+                "{configs.find(c => c.settingKey === 'latest_ai_insight')?.value || "Initializing intelligence protocols. Please run the business audit script to generate your first audit."}"
+              </p>
+            </div>
+
+            <div className="space-y-3">
+              <p className="text-[10px] font-bold text-[#86868B] uppercase tracking-widest">Growth Levers identified</p>
+              {[
+                "LTV Optimization: Bryan Bailey",
+                "Churn Risk: Arki Design Studio",
+                "Project Velocity: NextGen AI"
+              ].map((lever, i) => (
+                <div key={i} className="flex items-center justify-between p-3 rounded-xl hover:bg-[#F5F5F7] cursor-pointer transition-all border border-transparent hover:border-black/5">
+                  <span className="text-sm font-semibold text-[#1D1D1F]">{lever}</span>
+                  <ChevronRight size={16} className="text-[#86868B]" />
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default Dashboard;

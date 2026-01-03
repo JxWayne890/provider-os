@@ -1,0 +1,77 @@
+{
+    "nodes": [
+        {
+            "parameters": {
+                "httpMethod": "POST",
+                "path": "provider-os-router",
+                "options": {}
+            },
+            "id": "e8a93a0d-6e4c-49a0-9812-3298c5c7d86f",
+            "name": "Webhook",
+            "type": "n8n-nodes-base.webhook",
+            "typeVersion": 1,
+            "position": [
+                400,
+                300
+            ],
+            "webhookId": "provider-os-router"
+        },
+        {
+            "parameters": {
+                "operation": "update",
+                "sheetId": "12su-WYevjlOFO6v-SkmtXLhhQtWNByZBcuK-p4xNrd0",
+                "range": "={{$json.body.tab}}!A1:Z",
+                "key": "Lead ID",
+                "dataMode": "map",
+                "columnToMatch": "Lead ID",
+                "valueToMatch": "={{$json.body.id}}",
+                "columns": {
+                    "mapping": [
+                        {
+                            "column": "Lead Score",
+                            "value": "={{$json.body.data.leadScore}}"
+                        },
+                        {
+                            "column": "Qualification Status",
+                            "value": "={{$json.body.data.qualificationStatus}}"
+                        },
+                        {
+                            "column": "Outreach Draft – Email (AI)",
+                            "value": "={{$json.body.data.outreachEmailDraft}}"
+                        },
+                        {
+                            "column": "Outreach Draft – LinkedIn (AI)",
+                            "value": "={{$json.body.data.outreachLinkedInDraft}}"
+                        },
+                        {
+                            "column": "Next Action",
+                            "value": "={{$json.body.data.nextAction}}"
+                        }
+                    ]
+                },
+                "options": {}
+            },
+            "id": "d7b92f01-9e8c-4c6c-9c32-2298c5c7d86f",
+            "name": "Google Sheets",
+            "type": "n8n-nodes-base.googleSheets",
+            "typeVersion": 3,
+            "position": [
+                600,
+                300
+            ]
+        }
+    ],
+    "connections": {
+        "Webhook": {
+            "main": [
+                [
+                    {
+                        "node": "Google Sheets",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    }
+}

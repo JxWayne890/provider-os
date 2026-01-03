@@ -1,0 +1,7 @@
+{
+  "name": "The Provider’s Business OS",
+  "description": "An internal business operating system for lead generation, client management, payments, and post-meeting intelligence.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}
