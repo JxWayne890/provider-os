@@ -63,6 +63,26 @@ body {
     box-shadow: 10px 0 30px rgba(0, 0, 0, 0.02);
 }
 
+/* Mobile-specific styles */
+@media (max-width: 768px) {
+    .luminous-sidebar {
+        background: white;
+        border-right: 1px solid rgba(0, 0, 0, 0.05);
+    }
+
+    .bottom-nav {
+        background: rgba(255, 255, 255, 0.85);
+        backdrop-filter: blur(20px);
+        border-top: 1px solid rgba(0, 0, 0, 0.05);
+        padding-bottom: env(safe-area-inset-bottom);
+    }
+
+    .mobile-touch-target {
+        min-height: 44px;
+        min-width: 44px;
+    }
+}
+
 .luminous-button-gold {
     background: var(--accent-gold);
     color: white;

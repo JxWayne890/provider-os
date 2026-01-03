@@ -166,8 +166,8 @@ const App: React.FC = () => {
 
   return (
     <div className="flex h-screen bg-[#F5F5F7] text-[#1D1D1F] overflow-hidden font-sans">
-      {/* Luminous Sidebar */}
-      <aside className="w-72 luminous-sidebar flex flex-col z-20 overflow-y-auto">
+      {/* Luminous Sidebar (Desktop Only) */}
+      <aside className={`w-72 luminous-sidebar hidden lg:flex flex-col z-20 overflow-y-auto`}>
         <div className="p-8">
           <div className="flex items-center gap-3 mb-10">
             <div className="w-10 h-10 bg-[#B8860B] rounded-xl flex items-center justify-center shadow-lg shadow-[#B8860B]/20 animate-reveal">
@@ -223,18 +223,17 @@ const App: React.FC = () => {
       {/* Main Content Area */}
       <main className="flex-1 overflow-y-auto bg-transparent relative h-screen">
         {/* Top Header */}
-        <header className="sticky top-0 z-10 px-8 py-6 bg-white/60 backdrop-blur-md border-b border-black/5 flex items-center justify-between">
-          <div className="flex items-center gap-4 bg-[#F5F5F7] px-4 py-2 rounded-2xl border border-black/5 w-96 animate-reveal">
+        <header className="sticky top-0 z-10 px-4 lg:px-8 py-4 lg:py-6 bg-white/60 backdrop-blur-md border-b border-black/5 flex items-center justify-between">
+          <div className="flex items-center gap-4 bg-[#F5F5F7] px-4 py-2 rounded-2xl border border-black/5 w-full lg:w-96 animate-reveal">
             <Search className="text-[#86868B]" size={18} />
             <input
               type="text"
-              placeholder="Search everything..."
+              placeholder="Search master data..."
               className="bg-transparent border-none outline-none text-sm font-medium w-full text-[#1D1D1F]"
             />
-            <span className="text-[10px] font-bold text-[#86868B] bg-white px-1.5 py-0.5 rounded border border-black/5">⌘K</span>
           </div>
 
-          <div className="flex items-center gap-4 animate-reveal">
+          <div className="hidden lg:flex items-center gap-4 animate-reveal">
             <button className="p-2.5 text-[#86868B] hover:text-[#1D1D1F] hover:bg-[#F5F5F7] rounded-xl transition-all relative">
               <Bell size={20} />
               <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
@@ -243,7 +242,7 @@ const App: React.FC = () => {
           </div>
         </header>
 
-        <div className="p-8 max-w-7xl mx-auto">
+        <div className="p-4 lg:p-8 max-w-7xl mx-auto pb-32 lg:pb-8">
           {isLoading && leads.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-40 animate-reveal">
               <div className="w-12 h-12 border-4 border-[#B8860B] border-t-transparent rounded-full animate-spin mb-4"></div>
@@ -264,6 +263,26 @@ const App: React.FC = () => {
           )}
         </div>
       </main>
+
+      {/* Luminous Bottom Nav (Mobile Only) */}
+      <nav className="fixed bottom-0 left-0 right-0 lg:hidden bottom-nav z-50 flex justify-around items-center px-4 py-3 animate-in fade-in slide-in-from-bottom duration-500">
+        {[
+          { id: 'dashboard', icon: LayoutGrid, label: 'Stats' },
+          { id: 'leads', icon: Target, label: 'Leads' },
+          { id: 'deals', icon: FileText, label: 'Flow' },
+          { id: 'payments', icon: CreditCard, label: 'Pay' },
+          { id: 'settings', icon: Settings, label: 'Cfg' },
+        ].map((item) => (
+          <button
+            key={item.id}
+            onClick={() => setActiveTab(item.id as Tab)}
+            className={`flex flex-col items-center gap-1 transition-all ${activeTab === item.id ? 'text-[#B8860B] scale-110' : 'text-[#86868B]'}`}
+          >
+            <item.icon size={20} strokeWidth={activeTab === item.id ? 2.5 : 2} />
+            <span className="text-[10px] font-bold uppercase tracking-tighter">{item.label}</span>
+          </button>
+        ))}
+      </nav>
     </div>
   );
 };
