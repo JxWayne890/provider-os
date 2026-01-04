@@ -1,13 +1,14 @@
 
 import React from 'react';
-import { Project } from '../types';
-import { Briefcase, Clock, CheckCircle2, AlertTriangle, ChevronRight, Layout, Milestone, Plus } from 'lucide-react';
+import { Project, Payment } from '../types';
+import { Briefcase, Clock, CheckCircle2, AlertTriangle, ChevronRight, Layout, Milestone, Plus, DollarSign } from 'lucide-react';
 
 interface ProjectsManagerProps {
     projects: Project[];
+    payments: Payment[];
 }
 
-const ProjectsManager: React.FC<ProjectsManagerProps> = ({ projects }) => {
+const ProjectsManager: React.FC<ProjectsManagerProps> = ({ projects, payments }) => {
     const getStatusStyle = (status: string) => {
         switch (status) {
             case 'Finished': return 'text-[#1D9D60] bg-[#1D9D60]/10 border-[#1D9D60]/20';
@@ -86,6 +87,28 @@ const ProjectsManager: React.FC<ProjectsManagerProps> = ({ projects }) => {
                                 </button>
                             </div>
                         </div>
+
+                        {/* Revenue Reconciliation Badge */}
+                        {payments.some(p => p.clientId === project.clientId && p.status === 'Paid') && (
+                            <div className="mt-8 p-4 bg-[#1D9D60]/5 border border-[#1D9D60]/10 rounded-2xl flex items-center justify-between">
+                                <div className="flex items-center gap-4">
+                                    <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center border border-[#1D9D60]/10 shadow-sm">
+                                        <DollarSign size={16} className="text-[#1D9D60]" />
+                                    </div>
+                                    <div>
+                                        <span className="text-[10px] font-bold text-[#1D9D60] uppercase tracking-widest block">Revenue Reconciled</span>
+                                        <span className="text-xs font-medium text-[#1D1D1F]">
+                                            Payment of ${payments.find(p => p.clientId === project.clientId && p.status === 'Paid')?.amount.toLocaleString()} verified in Stripe.
+                                        </span>
+                                    </div>
+                                </div>
+                                {['Proposal', 'Planning'].includes(project.status) && (
+                                    <button className="px-4 py-2 bg-[#1D9D60] text-white text-[10px] font-bold uppercase tracking-widest rounded-xl hover:shadow-lg transition-all active:scale-95">
+                                        Auto-Advance to In Progress
+                                    </button>
+                                )}
+                            </div>
+                        )}
 
                         {project.risks && (
                             <div className="mt-8 p-4 bg-red-500/5 border border-red-500/10 rounded-2xl flex items-center gap-4">

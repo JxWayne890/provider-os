@@ -41,6 +41,7 @@ export interface Lead {
   owner: string;
   createdDate: string;
   lastTouchDate: string;
+  stripePaymentLink?: string;
 }
 
 export interface Client {
@@ -88,6 +89,7 @@ export interface Payment {
   paidDate?: string;
   stripeLink: string;
   notes: string;
+  projectId?: string;
 }
 
 export interface Session {

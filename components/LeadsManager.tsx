@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { Search, Plus, Filter, Mail, Linkedin, Sparkles, MoreHorizontal, ChevronRight, CheckCircle2 } from 'lucide-react';
 import { Lead, DealStage } from '../types';
 import { qualifyLead } from '../services/geminiService';
+import { createStripePaymentLink } from '../services/sheetsService';
 
 interface LeadsManagerProps {
   leads: Lead[];
@@ -13,6 +14,7 @@ const LeadsManager: React.FC<LeadsManagerProps> = ({ leads, onUpdateLead }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [isQualifying, setIsQualifying] = useState<string | null>(null);
   const [isSyncing, setIsSyncing] = useState<string | null>(null);
+  const [isGeneratingLink, setIsGeneratingLink] = useState<string | null>(null);
 
   const filteredLeads = leads.filter(l =>
     l.company.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -44,6 +46,27 @@ const LeadsManager: React.FC<LeadsManagerProps> = ({ leads, onUpdateLead }) => {
       setIsQualifying(null);
     } finally {
       setIsSyncing(null);
+    }
+  };
+
+  const handleCreatePaymentLink = async (lead: Lead) => {
+    const amountStr = window.prompt(`Enter amount for ${lead.company} ($):`, "1500");
+    if (!amountStr) return;
+
+    const amount = parseFloat(amountStr);
+    if (isNaN(amount)) return;
+
+    setIsGeneratingLink(lead.id);
+    try {
+      const link = await createStripePaymentLink(lead.id, lead.company, amount);
+      if (link) {
+        onUpdateLead({ ...lead, stripePaymentLink: link });
+        window.alert(`Payment Link Generated!\n\n${link}`);
+      }
+    } catch (err) {
+      console.error("Failed to generate link", err);
+    } finally {
+      setIsGeneratingLink(null);
     }
   };
 
@@ -153,6 +176,14 @@ const LeadsManager: React.FC<LeadsManagerProps> = ({ leads, onUpdateLead }) => {
                     </button>
                     {lead.outreachEmailDraft && (
                       <>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleCreatePaymentLink(lead); }}
+                          disabled={isGeneratingLink === lead.id}
+                          className="p-2.5 bg-[#0066CC]/10 text-[#0066CC] hover:bg-[#0066CC]/20 rounded-xl transition-all border border-[#0066CC]/10"
+                          title="Generate Payment Link"
+                        >
+                          <Plus size={18} className={isGeneratingLink === lead.id ? 'animate-spin' : ''} />
+                        </button>
                         <button className="p-2.5 bg-white text-[#86868B] hover:text-[#1D1D1F] hover:bg-[#F5F5F7] rounded-xl transition-all border border-black/5" title="Email Draft">
                           <Mail size={18} />
                         </button>

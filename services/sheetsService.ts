@@ -145,3 +145,36 @@ export const updateSheetRow = async (tabName: string, rowId: string, rowData: an
         }
     }
 };
+
+/**
+ * STRIPE ACTIONS
+ * Leverages n8n to perform authenticated Stripe operations.
+ */
+export const createStripePaymentLink = async (leadId: string, companyName: string, amount: number) => {
+    if (!N8N_WEBHOOK_URL) {
+        console.error("n8n Webhook URL not configured for Stripe actions.");
+        return null;
+    }
+
+    try {
+        const response = await fetch(N8N_WEBHOOK_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                action: 'create_payment_link',
+                leadId,
+                companyName,
+                amount: amount * 100 // Stripe expects cents
+            })
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            return data.url; // Expecting { url: 'https://buy.stripe.com/...' }
+        }
+        throw new Error(`n8n failed with status ${response.status}`);
+    } catch (e) {
+        console.error("Failed to create Stripe payment link:", e);
+        return null;
+    }
+};

@@ -1,7 +1,10 @@
 
 import React from 'react';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
-import { TrendingUp, Users, Target, ArrowUpRight, Sparkles, ChevronRight, CreditCard, CheckCircle } from 'lucide-react';
+import {
+  TrendingUp, Users, Target, ArrowUpRight, Sparkles,
+  ChevronRight, CreditCard, CheckCircle, Shield, Zap
+} from 'lucide-react';
 import { Lead, Client, Payment, Metric, ClientStatus } from '../types';
 
 interface DashboardProps {
@@ -20,6 +23,22 @@ const Dashboard: React.FC<DashboardProps> = ({ leads, clients, payments, metrics
   const totalRevenue = payments.reduce((sum, p) => p.status === 'Paid' ? sum + p.amount : sum, 0);
   const activeClients = clients.filter(c => c.status === ClientStatus.ACTIVE).length;
   const leadCount = leads.length;
+
+  // Feature 2: Intelligence Matrix Calculations
+  const mrr = payments
+    .filter(p => p.type === 'Subscription' && p.status === 'Paid')
+    .reduce((sum, p) => sum + p.amount, 0); // Simplified: assumes all are monthly for now
+
+  const avgLtv = clients.length > 0
+    ? clients.reduce((sum, c) => sum + (c.totalContractValue || 0), 0) / clients.length
+    : 0;
+
+  // Feature 3: Tax Forecaster
+  const taxReserveRate = 0.25;
+  const bufferRate = 0.05;
+  const taxReserve = totalRevenue * taxReserveRate;
+  const buffer = totalRevenue * bufferRate;
+  const safeToSpend = totalRevenue - taxReserve - buffer;
 
   // Chart data mapping
   const chartData = metrics.map(m => {
@@ -63,30 +82,35 @@ const Dashboard: React.FC<DashboardProps> = ({ leads, clients, payments, metrics
 
   return (
     <div className="space-y-10 animate-reveal pb-20">
-      <header>
-        <h1 className="text-5xl font-serif font-bold text-[#1D1D1F] tracking-tight">{businessName}</h1>
-        <p className="text-[#86868B] mt-2 font-medium tracking-wide uppercase text-xs">Operational Intelligence Dashboard</p>
+      <header className="flex justify-between items-end">
+        <div>
+          <h1 className="text-5xl font-serif font-bold text-[#1D1D1F] tracking-tight">{businessName}</h1>
+          <p className="text-[#86868B] mt-2 font-medium tracking-wide uppercase text-xs">Operational Intelligence Dashboard</p>
+        </div>
+        <div className="flex gap-4">
+          <div className="luminous-card py-2 px-4 flex items-center gap-3 bg-white/50 border-black/5">
+            <Shield size={16} className="text-[#1D9D60]" />
+            <span className="text-[10px] font-bold text-[#86868B] uppercase tracking-widest">Fiscal Safety: High</span>
+          </div>
+        </div>
       </header>
 
-      {/* KPI Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      {/* Primary KPI Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         {[
           { label: 'Total Revenue', value: `$${totalRevenue.toLocaleString()}`, icon: TrendingUp, color: 'text-[#B8860B]' },
-          { label: 'Active Partnerships', value: activeClients, icon: Users, color: 'text-[#0066CC]' },
-          { label: 'Growth Pipeline', value: leadCount, icon: Target, color: 'text-[#1D9D60]' }
+          { label: 'Monthly Recurring', value: `$${mrr.toLocaleString()}`, icon: Zap, color: 'text-[#0066CC]' },
+          { label: 'Avg Client LTV', value: `$${Math.round(avgLtv).toLocaleString()}`, icon: Users, color: 'text-[#8E44AD]' },
+          { label: 'Pipeline Value', value: leadCount, icon: Target, color: 'text-[#1D9D60]' }
         ].map((kpi, idx) => (
-          <div key={idx} className="luminous-card p-8 group hover:border-[#B8860B]/30 transition-all duration-500 bg-white/70" style={{ animationDelay: `${idx * 0.1}s` }}>
-            <div className="flex justify-between items-start mb-6">
-              <div className={`p-3 rounded-2xl bg-white shadow-sm border border-black/5 ${kpi.color}`}>
-                <kpi.icon size={24} />
+          <div key={idx} className="luminous-card p-6 group hover:border-[#B8860B]/30 transition-all duration-500 bg-white/70" style={{ animationDelay: `${idx * 0.1}s` }}>
+            <div className="flex justify-between items-start mb-4">
+              <div className={`p-2.5 rounded-xl bg-white shadow-sm border border-black/5 ${kpi.color}`}>
+                <kpi.icon size={20} />
               </div>
               <span className="text-[10px] font-bold text-[#86868B] uppercase tracking-[0.2em]">{kpi.label}</span>
             </div>
-            <h3 className="text-4xl font-serif font-bold text-[#1D1D1F]">{kpi.value}</h3>
-            <div className="mt-4 flex items-center gap-2 text-xs font-bold text-[#1D9D60]">
-              <ArrowUpRight size={14} />
-              <span>+12.4% vs prev period</span>
-            </div>
+            <h3 className="text-2xl font-serif font-bold text-[#1D1D1F]">{kpi.value}</h3>
           </div>
         ))}
       </div>
@@ -97,7 +121,7 @@ const Dashboard: React.FC<DashboardProps> = ({ leads, clients, payments, metrics
           <div className="flex justify-between items-center mb-10">
             <div>
               <h3 className="text-2xl font-serif font-bold text-[#1D1D1F]">Revenue Velocity</h3>
-              <p className="text-sm text-[#86868B]">Real-time performance performance vs projection</p>
+              <p className="text-sm text-[#86868B]">Net performance performance vs projection</p>
             </div>
             <div className="flex gap-2">
               <button className="px-4 py-2 bg-[#F5F5F7] text-[#1D1D1F] text-xs font-bold rounded-lg border border-black/5">Yearly</button>
@@ -133,38 +157,73 @@ const Dashboard: React.FC<DashboardProps> = ({ leads, clients, payments, metrics
           </div>
         </div>
 
-        {/* AI Consultant */}
-        <div className="luminous-card p-8 border-[#B8860B]/10 relative overflow-hidden bg-white/80">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-[#B8860B]/5 blur-3xl rounded-full"></div>
-          <div className="flex items-center gap-3 mb-8">
-            <div className="w-12 h-12 rounded-2xl bg-[#B8860B]/10 flex items-center justify-center border border-[#B8860B]/20">
-              <Sparkles className="text-[#B8860B]" size={24} />
-            </div>
-            <div>
-              <h3 className="text-xl font-serif font-bold text-[#1D1D1F]">AI Consultant</h3>
-              <p className="text-[10px] text-[#B8860B] font-bold uppercase tracking-widest">Active Intelligence</p>
+        {/* AI Consultant & Fiscal Health */}
+        <div className="space-y-8">
+          {/* Tax Forecaster Card */}
+          <div className="luminous-card p-8 bg-gradient-to-br from-[#1D1D1F] to-[#2C2C2E] text-white border-none relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-48 h-48 bg-[#B8860B]/10 blur-3xl rounded-full"></div>
+            <div className="relative z-10">
+              <div className="flex items-center justify-between mb-8">
+                <h3 className="text-xl font-serif font-bold flex items-center gap-3">
+                  <Shield size={20} className="text-[#B8860B]" /> Net-Net Forecast
+                </h3>
+                <span className="text-[10px] font-bold uppercase tracking-widest text-[#B8860B]">Q1 Estimate</span>
+              </div>
+
+              <div className="space-y-6">
+                <div>
+                  <p className="text-[10px] font-bold text-[#86868B] uppercase tracking-[0.2em] mb-2">Safe-to-Spend Balance</p>
+                  <h4 className="text-4xl font-serif font-bold text-white">${Math.round(safeToSpend).toLocaleString()}</h4>
+                </div>
+
+                <div className="space-y-3 pt-4 border-t border-white/10">
+                  {[
+                    { label: 'Tax Reserve (25%)', value: `-$${Math.round(taxReserve).toLocaleString()}`, color: 'text-red-400' },
+                    { label: 'Operational Buffer (5%)', value: `-$${Math.round(buffer).toLocaleString()}`, color: 'text-amber-400' }
+                  ].map((item, i) => (
+                    <div key={i} className="flex justify-between items-center text-xs font-bold">
+                      <span className="text-[#86868B]">{item.label}</span>
+                      <span className={item.color}>{item.value}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
 
-          <div className="space-y-6">
-            <div className="p-5 rounded-2xl bg-[#F5F5F7] border border-black/5 relative shadow-sm">
-              <p className="text-sm text-[#1D1D1F] leading-relaxed italic font-serif">
-                "{configs.find(c => c.settingKey === 'latest_ai_insight')?.value || "Initializing intelligence protocols. Please run the business audit script to generate your first audit."}"
-              </p>
+          {/* AI Consultant */}
+          <div className="luminous-card p-8 border-[#B8860B]/10 relative overflow-hidden bg-white">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-[#B8860B]/5 blur-3xl rounded-full"></div>
+            <div className="flex items-center gap-3 mb-8">
+              <div className="w-12 h-12 rounded-2xl bg-[#B8860B]/10 flex items-center justify-center border border-[#B8860B]/20">
+                <Sparkles className="text-[#B8860B]" size={24} />
+              </div>
+              <div>
+                <h3 className="text-xl font-serif font-bold text-[#1D1D1F]">AI Consultant</h3>
+                <p className="text-[10px] text-[#B8860B] font-bold uppercase tracking-widest">Active Intelligence</p>
+              </div>
             </div>
 
-            <div className="space-y-3">
-              <p className="text-[10px] font-bold text-[#86868B] uppercase tracking-widest">Growth Levers identified</p>
-              {[
-                "LTV Optimization: Bryan Bailey",
-                "Churn Risk: Arki Design Studio",
-                "Project Velocity: NextGen AI"
-              ].map((lever, i) => (
-                <div key={i} className="flex items-center justify-between p-3 rounded-xl hover:bg-[#F5F5F7] cursor-pointer transition-all border border-transparent hover:border-black/5">
-                  <span className="text-sm font-semibold text-[#1D1D1F]">{lever}</span>
-                  <ChevronRight size={16} className="text-[#86868B]" />
-                </div>
-              ))}
+            <div className="space-y-6">
+              <div className="p-5 rounded-2xl bg-[#F5F5F7] border border-black/5 relative shadow-sm">
+                <p className="text-sm text-[#1D1D1F] leading-relaxed italic font-serif">
+                  "{configs.find(c => c.settingKey === 'latest_ai_insight')?.value || "Initializing intelligence protocols. Please run the business audit script to generate your first audit."}"
+                </p>
+              </div>
+
+              <div className="space-y-3">
+                <p className="text-[10px] font-bold text-[#86868B] uppercase tracking-widest">Growth Levers identified</p>
+                {[
+                  "LTV Optimization: Bryan Bailey",
+                  "Churn Risk: Arki Design Studio",
+                  "Project Velocity: NextGen AI"
+                ].map((lever, i) => (
+                  <div key={i} className="flex items-center justify-between p-3 rounded-xl hover:bg-[#F5F5F7] cursor-pointer transition-all border border-transparent hover:border-black/5">
+                    <span className="text-sm font-semibold text-[#1D1D1F]">{lever}</span>
+                    <ChevronRight size={16} className="text-[#86868B]" />
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </div>

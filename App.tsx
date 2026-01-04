@@ -80,7 +80,8 @@ const App: React.FC = () => {
           companySize: row[10], painSignals: row[11], techStack: row[12],
           leadScore: Number(row[13]) || 0, qualificationStatus: row[14], dealStage: row[15] as DealStage,
           outreachEmailDraft: row[16], outreachLinkedInDraft: row[17], nextAction: row[18],
-          owner: row[19], createdDate: row[20], lastTouchDate: row[21]
+          owner: row[19], createdDate: row[20], lastTouchDate: row[21],
+          stripePaymentLink: row[22]
         })));
       }
 
@@ -249,7 +250,7 @@ const App: React.FC = () => {
               {activeTab === 'deals' && <DealsManager deals={deals} onUpdateDeal={() => { }} />}
               {activeTab === 'payments' && <PaymentsManager payments={payments} clients={clients} />}
               {activeTab === 'sessions' && <SessionsManager sessions={sessions} />}
-              {activeTab === 'projects' && <ProjectsManager projects={projects} />}
+              {activeTab === TABS.PROJECTS && <ProjectsManager projects={projects} payments={payments} />}
               {activeTab === 'tasks' && <OperationsManager tasks={tasks} />}
               {activeTab === 'settings' && <SettingsManager configs={configs} onRefresh={syncAllData} />}
               {activeTab === 'clients' && <ClientsManager clients={clients} payments={payments} projects={projects} sessions={sessions} />}
