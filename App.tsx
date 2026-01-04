@@ -244,7 +244,7 @@ const App: React.FC = () => {
             </div>
           ) : (
             <>
-              {activeTab === 'dashboard' && <Dashboard leads={leads} clients={clients} payments={payments} metrics={metrics} configs={configs} />}
+              {activeTab === 'dashboard' && <Dashboard leads={leads} clients={clients} payments={payments} metrics={metrics} configs={configs} onConnectStripe={() => setActiveTab('settings')} />}
               {activeTab === 'leads' && <LeadsManager leads={leads} onUpdateLead={updateLead} />}
               {activeTab === 'deals' && <DealsManager deals={deals} onUpdateDeal={() => { }} />}
               {activeTab === 'payments' && <PaymentsManager payments={payments} clients={clients} />}

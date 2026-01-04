@@ -10,9 +10,10 @@ interface DashboardProps {
   payments: Payment[];
   metrics: Metric[];
   configs: any[];
+  onConnectStripe: () => void;
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ leads, clients, payments, metrics, configs }) => {
+const Dashboard: React.FC<DashboardProps> = ({ leads, clients, payments, metrics, configs, onConnectStripe }) => {
   const businessName = configs.find(c => c.settingKey === 'business_name')?.value || 'The Provider';
   const stripeKey = configs.find(c => c.settingKey === 'stripe_api_key')?.value;
 
@@ -37,7 +38,10 @@ const Dashboard: React.FC<DashboardProps> = ({ leads, clients, payments, metrics
         <p className="text-lg text-[#6E6E73] max-w-md text-center mb-10 leading-relaxed font-sans">
           Connect your Stripe account to unlock deep historical insights, revenue velocity charts, and AI-powered fiscal auditing.
         </p>
-        <button className="px-10 py-4 luminous-button-gold rounded-2xl text-lg font-bold">
+        <button
+          onClick={onConnectStripe}
+          className="px-10 py-4 luminous-button-gold rounded-2xl text-lg font-bold transition-all active:scale-95"
+        >
           Connect Stripe System
         </button>
       </div>
