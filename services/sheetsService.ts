@@ -18,48 +18,61 @@ const N8N_WEBHOOK_URL = import.meta.env.VITE_N8N_WEBHOOK_URL || '';
  * or n8n (Read/Write & Secure).
  */
 export const fetchSheetData = async (tabName: string) => {
-    // Option 1: n8n Proxy (Preferred for Security/Automation)
+    let finalData: any[][] = [];
+
+    // 1. Try n8n Proxy (Secure/Authenticated)
     if (N8N_WEBHOOK_URL) {
         try {
             const response = await fetch(`${N8N_WEBHOOK_URL}?action=fetch&tab=${tabName}`);
-            return await response.json();
+            if (response.ok) {
+                const data = await response.json();
+                if (Array.isArray(data) && data.length > 0) {
+                    finalData = data;
+                }
+            }
         } catch (e) {
             console.error("n8n Sync Error:", e);
         }
     }
 
-    // --- MERGE LOCAL DATA ---
-    let finalData = [];
-
-    // Fallback to Direct Google Sheets API (Fallback/Read-only)
-    if (API_KEY) {
+    // 2. Fallback to Direct Google Sheets API (Read-only Public fallback)
+    // Only try if n8n didn't give us anything
+    if (finalData.length === 0 && API_KEY) {
         try {
             const response = await fetch(
                 `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${tabName}!A2:Z?key=${API_KEY}`
             );
-            const data = await response.json();
-            finalData = data.values || [];
+            if (response.ok) {
+                const data = await response.json();
+                if (data.values && Array.isArray(data.values)) {
+                    finalData = data.values;
+                }
+            }
         } catch (error) {
             console.error(`Error fetching sheet ${tabName}:`, error);
         }
     }
 
-    // Overlay Local Overrides
+    // 3. Overlay Local Overrides (The Hybrid Persistence)
     try {
         const localData = JSON.parse(localStorage.getItem(`OS_LOCAL_${tabName}`) || '[]');
-        if (localData.length > 0) {
+        if (Array.isArray(localData) && localData.length > 0) {
             localData.forEach((localRow: any) => {
                 const id = localRow[0];
                 const index = finalData.findIndex((r: any) => r[0] === id);
-                if (index >= 0) finalData[index] = localRow;
-                else finalData.push(localRow);
+                if (index >= 0) {
+                    finalData[index] = localRow;
+                } else {
+                    finalData.push(localRow);
+                }
             });
         }
     } catch (e) {
         console.error("Local data merge error:", e);
     }
 
-    return finalData.length > 0 ? finalData : null;
+    // Return the best available data set
+    return finalData.length > 0 ? finalData : [];
 };
 
 /**
