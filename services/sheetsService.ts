@@ -28,20 +28,40 @@ export const fetchSheetData = async (tabName: string) => {
         }
     }
 
-    // Option 2: Direct Google Sheets API (Fallback/Read-only)
-    if (API_KEY) {
-        try {
-            const response = await fetch(
-                `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${tabName}!A2:Z?key=${API_KEY}`
-            );
-            const data = await response.json();
-            return data.values;
-        } catch (error) {
-            console.error(`Error fetching sheet ${tabName}:`, error);
-        }
-    }
+}
 
-    return null;
+// --- MERGE LOCAL DATA ---
+let finalData = [];
+
+// Fallback to Direct Google Sheets API (Fallback/Read-only)
+if (API_KEY) {
+    try {
+        const response = await fetch(
+            `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${tabName}!A2:Z?key=${API_KEY}`
+        );
+        const data = await response.json();
+        finalData = data.values || [];
+    } catch (error) {
+        console.error(`Error fetching sheet ${tabName}:`, error);
+    }
+}
+
+// Overlay Local Overrides
+try {
+    const localData = JSON.parse(localStorage.getItem(`OS_LOCAL_${tabName}`) || '[]');
+    if (localData.length > 0) {
+        localData.forEach((localRow: any) => {
+            const id = localRow[0];
+            const index = finalData.findIndex((r: any) => r[0] === id);
+            if (index >= 0) finalData[index] = localRow;
+            else finalData.push(localRow);
+        });
+    }
+} catch (e) {
+    console.error("Local data merge error:", e);
+}
+
+return finalData.length > 0 ? finalData : null;
 };
 
 /**
@@ -70,7 +90,36 @@ export const updateSheetRow = async (tabName: string, rowId: string, rowData: an
             return false;
         }
     } else {
-        console.warn("No VITE_N8N_WEBHOOK_URL configured. Update skipped.");
-        return false;
+        // Option 2: Local Persistence Fallback (Works without n8n)
+        try {
+            const storageKey = `OS_LOCAL_${tabName}`;
+            const existing = JSON.parse(localStorage.getItem(storageKey) || '[]');
+
+            // Find if row exists by ID (index 0)
+            const index = existing.findIndex((r: any) => r[0] === rowId);
+
+            // Convert rowData object/array to Sheet format if needed
+            // For CONFIG, we expect A, B, C, D
+            let row = rowData;
+            if (tabName === 'CONFIG') {
+                row = [rowData['Setting Key'], rowData['Value'], rowData['Description'], rowData['Category']];
+            } else if (!Array.isArray(rowData)) {
+                // Generic conversion for other tabs if they provide objects
+                row = Object.values(rowData);
+            }
+
+            if (index >= 0) {
+                existing[index] = row;
+            } else {
+                existing.push(row);
+            }
+
+            localStorage.setItem(storageKey, JSON.stringify(existing));
+            console.log(`Saved to local persistence: ${tabName}`);
+            return true;
+        } catch (e) {
+            console.error("Local persistence error:", e);
+            return false;
+        }
     }
 };
