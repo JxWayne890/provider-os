@@ -15,13 +15,18 @@ auth.scopes = ['https://www.googleapis.com/auth/spreadsheets.readonly'];
 const sheets = google.sheets({ version: 'v4', auth });
 
 async function check() {
+    const tabs = ['CLIENTS', 'PAYMENTS', 'CONFIG', 'METRICS'];
     try {
-        const res = await sheets.spreadsheets.values.get({
-            spreadsheetId: SPREADSHEET_ID,
-            range: 'CLIENTS!A1:C5',
-        });
+        for (const tab of tabs) {
+            const res = await sheets.spreadsheets.values.get({
+                spreadsheetId: SPREADSHEET_ID,
+                range: `${tab}!A1:Z10`,
+            });
+            console.log(`TAB: ${tab}`);
+            console.log('DATA:', JSON.stringify(res.data.values));
+            console.log('-------------------');
+        }
         console.log('DB_STATUS: OK');
-        console.log('DATA:', JSON.stringify(res.data.values));
     } catch (err) {
         console.error('DB_STATUS: ERROR');
         console.error('ERROR:', err.message);

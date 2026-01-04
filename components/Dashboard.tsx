@@ -22,11 +22,24 @@ const Dashboard: React.FC<DashboardProps> = ({ leads, clients, payments, metrics
   const leadCount = leads.length;
 
   // Chart data mapping
-  const chartData = metrics.map(m => ({
-    name: m.date,
-    revenue: m.totalRevenue,
-    leads: m.leadCount
-  }));
+  const chartData = metrics.map(m => {
+    // Format date for better readability (e.g., Jun 01)
+    let formattedDate = m.date;
+    try {
+      const date = new Date(m.date);
+      if (!isNaN(date.getTime())) {
+        formattedDate = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      }
+    } catch (e) {
+      console.warn("Date formatting error:", e);
+    }
+
+    return {
+      name: formattedDate,
+      revenue: m.revenue || m.totalRevenue || 0,
+      leads: m.leads || m.leadCount || 0
+    };
+  });
 
   if (!stripeKey) {
     return (
@@ -100,7 +113,15 @@ const Dashboard: React.FC<DashboardProps> = ({ leads, clients, payments, metrics
                     <stop offset="95%" stopColor="#B8860B" stopOpacity={0} />
                   </linearGradient>
                 </defs>
-                <XAxis dataKey="name" stroke="#86868B" fontSize={11} tickLine={false} axisLine={false} />
+                <XAxis
+                  dataKey="name"
+                  stroke="#86868B"
+                  fontSize={11}
+                  tickLine={false}
+                  axisLine={false}
+                  minTickGap={40}
+                  interval="preserveStartEnd"
+                />
                 <YAxis stroke="#86868B" fontSize={11} tickLine={false} axisLine={false} tickFormatter={(v) => `$${v}`} />
                 <Tooltip
                   contentStyle={{ backgroundColor: '#FFF', border: '1px solid #B8860B20', borderRadius: '16px', boxShadow: '0 10px 30px rgba(0,0,0,0.05)' }}

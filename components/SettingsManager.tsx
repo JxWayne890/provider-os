@@ -73,6 +73,19 @@ const SettingsManager: React.FC<SettingsManagerProps> = ({ configs, onRefresh })
         }
     };
 
+    const handleReset = () => {
+        if (window.confirm('Clear all local integration keys and reset to system defaults?')) {
+            localStorage.removeItem('OS_LOCAL_CONFIG');
+            setStripeKey('');
+            setGoogleKey('');
+            setSaveStatus('success');
+            setTimeout(() => {
+                setSaveStatus('idle');
+                onRefresh();
+            }, 1000);
+        }
+    };
+
     return (
         <div className="max-w-4xl mx-auto space-y-12 animate-reveal pb-20">
             {/* Header */}
@@ -81,23 +94,31 @@ const SettingsManager: React.FC<SettingsManagerProps> = ({ configs, onRefresh })
                     <h1 className="text-5xl font-serif font-bold text-[#1D1D1F] tracking-tight">Config Hub</h1>
                     <p className="text-[#86868B] mt-2 font-medium tracking-wide uppercase text-xs">Manage system integrations and fiscal security</p>
                 </div>
-                <button
-                    onClick={handleSave}
-                    disabled={isSaving}
-                    className={`flex items-center gap-3 px-8 py-3 rounded-2xl font-bold transition-all shadow-lg active:scale-95 ${saveStatus === 'success'
-                        ? 'bg-[#1D9D60] text-white'
-                        : 'luminous-button-gold text-white shadow-[#B8860B]/20'
-                        }`}
-                >
-                    {isSaving ? (
-                        <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-                    ) : saveStatus === 'success' ? (
-                        <CheckCircle size={20} />
-                    ) : (
-                        <Save size={20} />
-                    )}
-                    {isSaving ? 'Encrypting...' : saveStatus === 'success' ? 'Vault Updated' : saveStatus === 'error' ? 'Connection Error' : 'Save System Changes'}
-                </button>
+                <div className="flex gap-3">
+                    <button
+                        onClick={handleReset}
+                        className="px-6 py-3 rounded-2xl font-bold bg-[#F5F5F7] text-[#86868B] hover:text-[#1D1D1F] border border-black/5 transition-all active:scale-95"
+                    >
+                        Reset Integration
+                    </button>
+                    <button
+                        onClick={handleSave}
+                        disabled={isSaving}
+                        className={`flex items-center gap-3 px-8 py-3 rounded-2xl font-bold transition-all shadow-lg active:scale-95 ${saveStatus === 'success'
+                            ? 'bg-[#1D9D60] text-white'
+                            : 'luminous-button-gold text-white shadow-[#B8860B]/20'
+                            }`}
+                    >
+                        {isSaving ? (
+                            <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                        ) : saveStatus === 'success' ? (
+                            <CheckCircle size={20} />
+                        ) : (
+                            <Save size={20} />
+                        )}
+                        {isSaving ? 'Encrypting...' : saveStatus === 'success' ? 'Vault Updated' : saveStatus === 'error' ? 'Connection Error' : 'Save System Changes'}
+                    </button>
+                </div>
             </div>
 
             {saveStatus === 'error' && (

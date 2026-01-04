@@ -43,17 +43,24 @@ export const fetchSheetData = async (tabName: string) => {
 
     if (finalData.length === 0 && activeKey) {
         try {
-            const response = await fetch(
-                `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${tabName}!A2:Z?key=${activeKey}`
-            );
+            const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${tabName}!A2:Z?key=${activeKey}`;
+            const response = await fetch(url);
+
             if (response.ok) {
                 const data = await response.json();
                 if (data.values && Array.isArray(data.values)) {
                     finalData = data.values;
                 }
+            } else {
+                const errorBody = await response.json().catch(() => ({}));
+                console.error(`Google Sheets API Error [${response.status}] for ${tabName}:`, errorBody.error?.message || response.statusText);
+
+                if (response.status === 403 || response.status === 400) {
+                    console.warn(`Potential invalid API Key detected: ${activeKey.substring(0, 5)}...`);
+                }
             }
         } catch (error) {
-            console.error(`Error fetching sheet ${tabName}:`, error);
+            console.error(`Network error fetching sheet ${tabName}:`, error);
         }
     }
 
