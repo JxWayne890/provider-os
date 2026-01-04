@@ -66,8 +66,9 @@ const LeadsManager: React.FC<LeadsManagerProps> = ({ leads, onUpdateLead, onRequ
       </div>
 
       {/* Search and Filter Bar */}
-      <div className="luminous-card bg-white/70 p-4 border-black/5 flex flex-wrap gap-4 items-center">
-        <div className="relative flex-1 min-w-[300px]">
+      {/* Search and Filter Bar */}
+      <div className="luminous-card bg-white/70 p-4 border-black/5 flex flex-col md:flex-row gap-4 md:items-center">
+        <div className="relative flex-1 w-full">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-[#86868B]" size={18} />
           <input
             type="text"
@@ -77,16 +78,18 @@ const LeadsManager: React.FC<LeadsManagerProps> = ({ leads, onUpdateLead, onRequ
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
-        <button className="px-5 py-3 bg-white border border-black/5 rounded-2xl text-xs font-bold text-[#1D1D1F] flex items-center gap-2 hover:bg-[#F5F5F7] transition-all shadow-sm">
-          <Filter size={14} /> Stage
-        </button>
-        <button className="px-5 py-3 bg-white border border-black/5 rounded-2xl text-xs font-bold text-[#1D1D1F] flex items-center gap-2 hover:bg-[#F5F5F7] transition-all shadow-sm">
-          <Filter size={14} /> Score
-        </button>
+        <div className="flex gap-3">
+          <button className="flex-1 md:flex-none px-5 py-3 bg-white border border-black/5 rounded-2xl text-xs font-bold text-[#1D1D1F] flex items-center justify-center gap-2 hover:bg-[#F5F5F7] transition-all shadow-sm whitespace-nowrap">
+            <Filter size={14} /> Stage
+          </button>
+          <button className="flex-1 md:flex-none px-5 py-3 bg-white border border-black/5 rounded-2xl text-xs font-bold text-[#1D1D1F] flex items-center justify-center gap-2 hover:bg-[#F5F5F7] transition-all shadow-sm whitespace-nowrap">
+            <Filter size={14} /> Score
+          </button>
+        </div>
       </div>
 
-      {/* Leads Table */}
-      <div className="luminous-card bg-white overflow-x-auto">
+      {/* Leads Table (Desktop) */}
+      <div className="hidden md:block luminous-card bg-white overflow-x-auto">
         <table className="w-full text-left min-w-[1000px]">
           <thead>
             <tr className="border-b border-[#F5F5F7] bg-[#F5F5F7]/30">
@@ -189,6 +192,80 @@ const LeadsManager: React.FC<LeadsManagerProps> = ({ leads, onUpdateLead, onRequ
             ))}
           </tbody>
         </table>
+      </div>
+
+      {/* Leads Cards (Mobile) */}
+      <div className="md:hidden space-y-4">
+        {filteredLeads.map((lead) => (
+          <div key={lead.id} className="bg-white p-5 rounded-[24px] border border-black/5 shadow-sm active:scale-[0.98] transition-transform" onClick={() => setActiveSimulator(lead)}>
+            {/* Header */}
+            <div className="flex items-center gap-4 mb-5">
+              <div className="w-14 h-14 rounded-[20px] bg-[#E8E8E8] border border-black/5 flex items-center justify-center text-[#1D1D1F] font-serif font-bold text-xl shadow-sm">
+                {lead.firstName[0]}{lead.lastName[0]}
+              </div>
+              <div>
+                <div className="font-bold text-[#1D1D1F] text-lg">{lead.firstName} {lead.lastName}</div>
+                <div className="text-[11px] font-bold text-[#86868B] uppercase tracking-wide">{lead.company}</div>
+                <div className="text-[10px] text-[#86868B]">{lead.role}</div>
+              </div>
+            </div>
+
+            {/* Stats Grid */}
+            <div className="grid grid-cols-2 gap-4 mb-5">
+              <div className="bg-[#F5F5F7]/80 p-3 rounded-2xl border border-black/5">
+                <div className="text-[9px] font-bold text-[#86868B] uppercase tracking-widest mb-1.5">Lead Score</div>
+                <div className="flex items-center gap-2">
+                  <div className="flex-1 h-2 bg-black/5 rounded-full overflow-hidden">
+                    <div
+                      className={`h-full rounded-full ${lead.leadScore > 75 ? 'bg-[#1D9D60]' : lead.leadScore > 40 ? 'bg-amber-500' : 'bg-red-500'}`}
+                      style={{ width: `${lead.leadScore}%` }}
+                    />
+                  </div>
+                  <span className="text-sm font-mono font-bold text-[#1D1D1F]">{lead.leadScore}</span>
+                </div>
+              </div>
+              <div className="bg-[#F5F5F7]/80 p-3 rounded-2xl border border-black/5 flex flex-col justify-center">
+                <div className="text-[9px] font-bold text-[#86868B] uppercase tracking-widest mb-1.5">Status</div>
+                <div>
+                  <span className={`px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wide border inline-block ${lead.qualificationStatus === 'Qualified' ? 'bg-[#1D9D60]/10 text-[#1D9D60] border-[#1D9D60]/10' :
+                    lead.qualificationStatus === 'Unqualified' ? 'bg-[#86868B]/10 text-[#86868B] border-[#86868B]/10' :
+                      'bg-red-500/10 text-red-500 border-red-500/10'
+                    }`}>
+                    {lead.qualificationStatus}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Stage Info */}
+            <div className="mb-5 flex items-center gap-2 text-xs font-medium text-[#1D1D1F] bg-[#F5F5F7] p-3 rounded-2xl border border-black/5">
+              <span className="text-[#B8860B] whitespace-nowrap"><Sparkles size={14} /> Next:</span>
+              <span className="truncate">{lead.nextAction}</span>
+            </div>
+
+            {/* Actions Footer */}
+            <div className="flex items-center justify-between border-t border-black/5 pt-4">
+              <div className="text-[10px] font-bold text-[#86868B] uppercase tracking-widest">{lead.dealStage}</div>
+              <div className="flex gap-2">
+                <button
+                  onClick={(e) => { e.stopPropagation(); handleAIQualify(lead); }}
+                  className="w-10 h-10 flex items-center justify-center bg-[#B8860B]/10 text-[#B8860B] rounded-xl border border-[#B8860B]/10"
+                >
+                  <Sparkles size={18} />
+                </button>
+                <button
+                  onClick={(e) => { e.stopPropagation(); onRequestLink?.(lead); }}
+                  className="w-10 h-10 flex items-center justify-center bg-[#0066CC]/10 text-[#0066CC] rounded-xl border border-[#0066CC]/10"
+                >
+                  <Plus size={18} />
+                </button>
+                <button className="w-10 h-10 flex items-center justify-center bg-[#F5F5F7] text-[#1D1D1F] rounded-xl border border-black/5">
+                  <ChevronRight size={18} />
+                </button>
+              </div>
+            </div>
+          </div>
+        ))}
       </div>
 
       {filteredLeads.length === 0 && (

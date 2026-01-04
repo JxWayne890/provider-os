@@ -81,36 +81,34 @@ const Dashboard: React.FC<DashboardProps> = ({ leads, clients, payments, metrics
   }
 
   return (
-    <div className="space-y-10 animate-reveal pb-20">
-      <header className="flex justify-between items-end">
+    <div className="space-y-8 animate-reveal pb-24">
+      <header className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
-          <h1 className="text-5xl font-serif font-bold text-[#1D1D1F] tracking-tight">{businessName}</h1>
-          <p className="text-[#86868B] mt-2 font-medium tracking-wide uppercase text-xs">Operational Intelligence Dashboard</p>
+          <h1 className="text-3xl md:text-4xl font-serif font-bold text-[#121212] tracking-tight">{businessName}</h1>
+          <p className="text-[#666] mt-1 font-medium text-sm">Overview</p>
         </div>
-        <div className="flex gap-4">
-          <div className="luminous-card py-2 px-4 flex items-center gap-3 bg-white/50 border-black/5">
-            <Shield size={16} className="text-[#1D9D60]" />
-            <span className="text-[10px] font-bold text-[#86868B] uppercase tracking-widest">Fiscal Safety: High</span>
+        <div className="flex items-center gap-3">
+          <div className="px-3 py-1.5 rounded-full bg-emerald-50 border border-emerald-100 flex items-center gap-2">
+            <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
+            <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-wider">Fiscal Safety: High</span>
           </div>
         </div>
       </header>
 
-      {/* Primary KPI Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+      {/* Primary KPI Grid - Mobile Optimized (2x2) */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
-          { label: 'Total Revenue', value: `$${totalRevenue.toLocaleString()}`, icon: TrendingUp, color: 'text-[#B8860B]' },
-          { label: 'Monthly Recurring', value: `$${mrr.toLocaleString()}`, icon: Zap, color: 'text-[#0066CC]' },
-          { label: 'Avg Client LTV', value: `$${Math.round(avgLtv).toLocaleString()}`, icon: Users, color: 'text-[#8E44AD]' },
-          { label: 'Pipeline Value', value: leadCount, icon: Target, color: 'text-[#1D9D60]' }
+          { label: 'Total Revenue', value: `$${totalRevenue.toLocaleString()}`, icon: TrendingUp, color: 'text-[#121212]', bg: 'bg-white' },
+          { label: 'Recurring', value: `$${mrr.toLocaleString()}`, icon: Zap, color: 'text-blue-600', bg: 'bg-blue-50/50' },
+          { label: 'Avg LTV', value: `$${Math.round(avgLtv).toLocaleString()}`, icon: Users, color: 'text-purple-600', bg: 'bg-purple-50/50' },
+          { label: 'Pipeline', value: leadCount, icon: Target, color: 'text-emerald-600', bg: 'bg-emerald-50/50' }
         ].map((kpi, idx) => (
-          <div key={idx} className="luminous-card p-6 group hover:border-[#B8860B]/30 transition-all duration-500 bg-white/70" style={{ animationDelay: `${idx * 0.1}s` }}>
-            <div className="flex justify-between items-start mb-4">
-              <div className={`p-2.5 rounded-xl bg-white shadow-sm border border-black/5 ${kpi.color}`}>
-                <kpi.icon size={20} />
-              </div>
-              <span className="text-[10px] font-bold text-[#86868B] uppercase tracking-[0.2em]">{kpi.label}</span>
+          <div key={idx} className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between h-[120px] md:h-auto animate-reveal">
+            <div className="flex justify-between items-start mb-2">
+              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{kpi.label}</span>
+              <kpi.icon size={16} className={`${kpi.color} opacity-80`} />
             </div>
-            <h3 className="text-2xl font-serif font-bold text-[#1D1D1F]">{kpi.value}</h3>
+            <h3 className={`text-xl md:text-2xl font-serif font-bold text-[#121212]`}>{kpi.value}</h3>
           </div>
         ))}
       </div>

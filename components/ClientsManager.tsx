@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Users, Search, Filter, Plus, Mail, Phone, MoreVertical, ExternalLink, ShieldCheck, AlertCircle, X, Calendar, DollarSign, Briefcase, FileText, RefreshCw, CheckCircle2 } from 'lucide-react';
+import { Users, Search, Filter, Plus, Mail, Phone, MoreVertical, ExternalLink, ShieldCheck, AlertCircle, X, Calendar, DollarSign, Briefcase, FileText, RefreshCw, CheckCircle2, ChevronRight } from 'lucide-react';
 import { Client, ClientStatus, Payment, Project, Session } from '../types';
 import { createStripeInvoice, createStripeCustomer, updateSheetRow } from '../services/sheetsService';
 
@@ -181,46 +181,49 @@ const ClientsManager: React.FC<ClientsManagerProps> = ({ clients, payments, proj
 
     return (
         <div className="space-y-10 animate-reveal pb-20">
-            <header className="flex flex-col md:flex-row md:items-center justify-end gap-6">
-                <div className="flex items-center gap-4">
-                    <div className="flex items-center gap-2 px-4 py-2 bg-white border border-black/5 rounded-2xl text-[#86868B] shadow-sm">
+            <header className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+                <h2 className="hidden md:block text-3xl font-serif font-bold text-[#1D1D1F] tracking-tight">Portfolio</h2>
+                <div className="flex flex-col md:flex-row items-stretch md:items-center gap-4 w-full md:w-auto">
+                    <div className="flex items-center gap-2 px-4 py-3 md:py-2 bg-white border border-black/5 rounded-2xl text-[#86868B] shadow-sm flex-1">
                         <Search size={16} />
                         <input
                             type="text"
                             placeholder="Search clients..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
-                            className="bg-transparent border-none outline-none text-sm font-medium w-64 text-[#1D1D1F]"
+                            className="bg-transparent border-none outline-none text-sm font-medium w-full md:w-64 text-[#1D1D1F]"
                         />
                     </div>
-                    <button className="p-2.5 bg-white border border-black/5 rounded-2xl text-[#86868B] hover:text-[#1D1D1F] transition-all shadow-sm">
-                        <Filter size={20} />
-                    </button>
-                    <button
-                        onClick={() => setIsNewClientModalOpen(true)}
-                        className="flex items-center gap-2 px-6 py-3 luminous-button-gold rounded-2xl text-sm font-bold shadow-lg shadow-[#B8860B]/20"
-                    >
-                        <Plus size={18} /> New Client
-                    </button>
+                    <div className="flex gap-2">
+                        <button className="p-3 md:p-2.5 bg-white border border-black/5 rounded-2xl text-[#86868B] hover:text-[#1D1D1F] transition-all shadow-sm">
+                            <Filter size={20} />
+                        </button>
+                        <button
+                            onClick={() => setIsNewClientModalOpen(true)}
+                            className="flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-3 luminous-button-gold rounded-2xl text-sm font-bold shadow-lg shadow-[#B8860B]/20 whitespace-nowrap"
+                        >
+                            <Plus size={18} /> New Client
+                        </button>
+                    </div>
                 </div>
             </header>
 
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
                 {[
                     { label: 'Total Reach', value: clients.length, color: 'text-[#1D1D1F]' },
                     { label: 'Total Invoiced', value: `$${clients.reduce((sum, c) => sum + (c.totalContractValue || 0), 0).toLocaleString()}`, color: 'text-[#1D1D1F]' },
                     { label: 'Monthly MRR', value: `$${clients.reduce((sum, c) => sum + (c.monthlyValue || 0), 0).toLocaleString()}`, color: 'text-[#1D9D60]' },
                     { label: 'Avg. Health', value: `${clients.length > 0 ? Math.round(clients.reduce((sum, c) => sum + (c.healthScore || 0), 0) / clients.length) : 0}%`, color: 'text-[#0066CC]' }
                 ].map((stat, i) => (
-                    <div key={i} className="luminous-card p-6 bg-white/70">
-                        <p className="text-[10px] font-bold text-[#86868B] uppercase tracking-[0.2em] mb-3">{stat.label}</p>
-                        <h3 className={`text-3xl font-serif font-bold ${stat.color}`}>{stat.value}</h3>
+                    <div key={i} className="luminous-card p-4 md:p-6 bg-white/70">
+                        <p className="text-[9px] md:text-[10px] font-bold text-[#86868B] uppercase tracking-[0.2em] mb-2 md:mb-3">{stat.label}</p>
+                        <h3 className={`text-xl md:text-3xl font-serif font-bold ${stat.color}`}>{stat.value}</h3>
                     </div>
                 ))}
             </div>
 
-            {/* Client List */}
-            <div className="luminous-card bg-white overflow-hidden">
+            {/* Client List (Desktop) */}
+            <div className="hidden md:block luminous-card bg-white overflow-hidden">
                 <div className="overflow-x-auto">
                     <table className="w-full text-left">
                         <thead>
@@ -296,6 +299,58 @@ const ClientsManager: React.FC<ClientsManagerProps> = ({ clients, payments, proj
                     <div className="flex flex-col items-center justify-center py-24 text-[#86868B]">
                         <AlertCircle size={48} className="mb-4 opacity-20" />
                         <p className="font-serif italic text-lg">Your partnership roster is currently empty.</p>
+                    </div>
+                )}
+            </div>
+
+            {/* Client Cards (Mobile) */}
+            <div className="md:hidden space-y-4">
+                {filteredClients.map((client) => (
+                    <div
+                        key={client.id}
+                        onClick={() => setSelectedClient(client)}
+                        className="bg-white p-5 rounded-[24px] border border-black/5 shadow-sm active:scale-[0.98] transition-transform"
+                    >
+                        <div className="flex justify-between items-start mb-4">
+                            <div>
+                                <h3 className="text-lg font-bold text-[#1D1D1F] flex items-center gap-2">
+                                    {client.companyName}
+                                    {client.stripeCustomerId && <ShieldCheck size={16} className="text-[#0066CC]" />}
+                                </h3>
+                                <p className="text-[10px] text-[#B8860B] font-bold uppercase tracking-wider mt-1">{client.servicePackage}</p>
+                            </div>
+                            <span className={`px-2.5 py-1 rounded-lg text-[9px] font-bold uppercase tracking-wide border ${getStatusStyle(client.status)}`}>
+                                {client.status}
+                            </span>
+                        </div>
+
+                        <div className="bg-[#F5F5F7]/80 p-3 rounded-2xl border border-black/5 mb-4">
+                            <div className="flex items-center gap-3 mb-2">
+                                <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center border border-black/5 text-[#1D1D1F] font-bold text-xs">
+                                    {client.primaryContact[0]}
+                                </div>
+                                <div className="overflow-hidden">
+                                    <p className="text-sm font-medium text-[#1D1D1F] truncate">{client.primaryContact}</p>
+                                    <p className="text-[10px] text-[#86868B] truncate">{client.email}</p>
+                                </div>
+                            </div>
+                            <div className="flex justify-between items-center border-t border-black/5 pt-2 mt-1">
+                                <span className="text-[9px] font-bold text-[#86868B] uppercase tracking-wider">Recurring</span>
+                                <span className="text-sm font-mono font-bold text-[#1D9D60]">${client.monthlyValue?.toLocaleString()}</span>
+                            </div>
+                        </div>
+
+                        <div className="flex justify-end gap-2">
+                            <button className="flex items-center gap-1 text-[10px] font-bold text-[#1D1D1F] px-4 py-2 bg-[#F5F5F7] rounded-xl hover:bg-[#E8E8E8] transition-all">
+                                Manage <ChevronRight size={12} />
+                            </button>
+                        </div>
+                    </div>
+                ))}
+                {filteredClients.length === 0 && (
+                    <div className="py-12 flex flex-col items-center justify-center text-[#86868B]">
+                        <AlertCircle size={32} className="mb-3 opacity-20" />
+                        <p className="text-sm font-serif italic">No clients found.</p>
                     </div>
                 )}
             </div>

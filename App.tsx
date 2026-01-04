@@ -193,13 +193,13 @@ const App: React.FC = () => {
               <button
                 key={item.id}
                 onClick={() => setActiveTab(item.id as Tab)}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-semibold transition-all animate-reveal ${activeTab === item.id
-                  ? 'bg-[#E8E8E8] text-[#B8860B] shadow-inner font-bold'
-                  : 'text-[#86868B] hover:bg-white hover:text-[#1D1D1F]'
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all animate-reveal ${activeTab === item.id
+                  ? 'bg-[#121212] text-white shadow-md'
+                  : 'text-[#666] hover:bg-gray-50 hover:text-[#121212]'
                   }`}
-                style={{ animationDelay: `${0.2 + idx * 0.05}s` }}
+                style={{ animationDelay: `${0.1 + idx * 0.03}s` }}
               >
-                <item.icon size={18} strokeWidth={2.5} />
+                <item.icon size={18} strokeWidth={2} />
                 {item.label}
               </button>
             ))}
@@ -209,13 +209,13 @@ const App: React.FC = () => {
         <div className="mt-auto p-8">
           <button
             onClick={() => setActiveTab('settings')}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-semibold transition-all animate-reveal ${activeTab === 'settings'
-              ? 'bg-[#E8E8E8] text-[#B8860B]'
-              : 'text-[#86868B] hover:bg-white'
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all animate-reveal ${activeTab === 'settings'
+              ? 'bg-[#121212] text-white shadow-md'
+              : 'text-[#666] hover:bg-gray-50'
               }`}
-            style={{ animationDelay: '0.6s' }}
+            style={{ animationDelay: '0.4s' }}
           >
-            <Settings size={18} strokeWidth={2.5} />
+            <Settings size={18} strokeWidth={2} />
             Config Hub
           </button>
         </div>
@@ -224,13 +224,13 @@ const App: React.FC = () => {
       {/* Main Content Area */}
       <main className="flex-1 overflow-y-auto bg-transparent relative h-screen">
         {/* Top Header */}
-        <header className="sticky top-0 z-10 px-4 lg:px-8 py-4 lg:py-6 bg-white/60 backdrop-blur-md border-b border-black/5 flex items-center justify-between">
-          <div className="flex items-center gap-4 bg-[#F5F5F7] px-4 py-2 rounded-2xl border border-black/5 w-full lg:w-96 animate-reveal">
-            <Search className="text-[#86868B]" size={18} />
+        <header className="sticky top-0 z-10 px-4 lg:px-8 py-4 lg:py-6 bg-white/80 backdrop-blur-md border-b border-gray-100 flex items-center justify-between">
+          <div className="flex items-center gap-4 bg-gray-50 px-4 py-2.5 rounded-xl border border-gray-100 w-full lg:w-96 animate-reveal focus-within:ring-2 focus-within:ring-black/5 transition-all">
+            <Search className="text-gray-400" size={18} />
             <input
               type="text"
               placeholder="Search master data..."
-              className="bg-transparent border-none outline-none text-sm font-medium w-full text-[#1D1D1F]"
+              className="bg-transparent border-none outline-none text-sm font-medium w-full text-[#121212] placeholder-gray-400"
             />
           </div>
 
@@ -239,44 +239,48 @@ const App: React.FC = () => {
             <div className="relative">
               <button
                 onClick={() => setIsActionMenuOpen(!isActionMenuOpen)}
-                className="w-10 h-10 bg-[#0066CC] text-white rounded-full flex items-center justify-center hover:bg-[#0052A3] transition-all shadow-lg shadow-[#0066CC]/20"
+                className="w-10 h-10 bg-[#121212] text-white rounded-full flex items-center justify-center hover:bg-[#2C2C2C] transition-all shadow-lg shadow-black/10 active:scale-95"
               >
-                <Plus size={24} />
+                <Plus size={20} />
               </button>
 
               {isActionMenuOpen && (
-                <div className="absolute right-0 mt-3 w-56 bg-white rounded-2xl shadow-2xl border border-black/5 p-2 z-50 animate-reveal">
-                  <div className="text-[10px] font-bold text-[#86868B] uppercase tracking-widest p-3 border-b border-[#F5F5F7] mb-1">Create New...</div>
+                <div className="absolute right-0 mt-3 w-64 bg-white rounded-xl shadow-xl border border-gray-100 p-2 z-50 animate-in fade-in slide-in-from-top-2 duration-200">
+                  <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest p-3 border-b border-gray-50 mb-1">Create New...</div>
                   <button
                     onClick={() => { setActiveModal('payment_link'); setIsActionMenuOpen(false); }}
-                    className="w-full text-left px-4 py-3 text-sm font-semibold text-[#1D1D1F] hover:bg-[#F5F5F7] rounded-xl flex items-center gap-3 transition-all"
+                    className="w-full text-left px-4 py-3 text-sm font-semibold text-[#121212] hover:bg-gray-50 rounded-lg flex items-center gap-3 transition-all"
                   >
-                    <Zap size={18} className="text-[#0066CC]" />
+                    <Zap size={16} className="text-blue-600" />
                     Payment Link
                   </button>
                   <button
                     onClick={() => { setActiveModal('invoice'); setIsActionMenuOpen(false); }}
-                    className="w-full text-left px-4 py-3 text-sm font-semibold text-[#1D1D1F] hover:bg-[#F5F5F7] rounded-xl flex items-center gap-3 transition-all"
+                    className="w-full text-left px-4 py-3 text-sm font-semibold text-[#121212] hover:bg-gray-50 rounded-lg flex items-center gap-3 transition-all"
                   >
-                    <FileText size={18} className="text-[#1D9D60]" />
+                    <FileText size={16} className="text-emerald-600" />
                     Invoice
                   </button>
                   <button
                     onClick={() => { setActiveModal('subscription'); setIsActionMenuOpen(false); }}
-                    className="w-full text-left px-4 py-3 text-sm font-semibold text-[#1D1D1F] hover:bg-[#F5F5F7] rounded-xl flex items-center gap-3 transition-all"
+                    className="w-full text-left px-4 py-3 text-sm font-semibold text-[#121212] hover:bg-gray-50 rounded-lg flex items-center gap-3 transition-all"
                   >
-                    <RefreshCw size={18} className="text-[#B8860B]" />
+                    <RefreshCw size={16} className="text-amber-600" />
                     Subscription
                   </button>
                 </div>
               )}
             </div>
 
-            <button className="p-2.5 text-[#86868B] hover:text-[#1D1D1F] hover:bg-[#F5F5F7] rounded-xl transition-all relative">
+            <button className="p-2.5 text-gray-400 hover:text-[#121212] hover:bg-gray-50 rounded-xl transition-all relative">
               <Bell size={20} />
-              <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
+              <span className="absolute top-2.5 right-2.5 w-1.5 h-1.5 bg-red-500 rounded-full ring-2 ring-white"></span>
             </button>
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-[#B8860B] to-[#D4AF37] border-2 border-white shadow-md"></div>
+
+            {/* User Avatar Placeholder */}
+            <div className="w-10 h-10 rounded-full bg-gray-100 border border-gray-200 flex items-center justify-center text-gray-500 font-bold text-sm">
+              JD
+            </div>
           </div>
         </header>
 
@@ -314,25 +318,88 @@ const App: React.FC = () => {
         </div>
       </main>
 
-      {/* Luminous Bottom Nav (Mobile Only) */}
-      <nav className="fixed bottom-0 left-0 right-0 lg:hidden bottom-nav z-50 flex justify-around items-center px-4 py-3 animate-in fade-in slide-in-from-bottom duration-500">
-        {[
-          { id: 'dashboard', icon: LayoutGrid, label: 'Stats' },
-          { id: 'crm', icon: Users, label: 'CRM' },
-          { id: 'deals', icon: FileText, label: 'Flow' },
-          { id: 'payments', icon: CreditCard, label: 'Pay' },
-          { id: 'settings', icon: Settings, label: 'Cfg' },
-        ].map((item) => (
-          <button
-            key={item.id}
-            onClick={() => setActiveTab(item.id as Tab)}
-            className={`flex flex-col items-center gap-1 transition-all ${activeTab === item.id ? 'text-[#B8860B] scale-110' : 'text-[#86868B]'}`}
-          >
-            <item.icon size={20} strokeWidth={activeTab === item.id ? 2.5 : 2} />
-            <span className="text-[10px] font-bold uppercase tracking-tighter">{item.label}</span>
-          </button>
-        ))}
+      {/* Clean Swiss Bottom Nav (Mobile Only) */}
+      <nav className="fixed bottom-0 left-0 right-0 lg:hidden bottom-nav z-50 flex items-center justify-between px-6 py-4 animate-in fade-in slide-in-from-bottom duration-500">
+        <button onClick={() => setActiveTab('dashboard')} className={`flex flex-col items-center gap-1 ${activeTab === 'dashboard' ? 'text-black' : 'text-gray-400'}`}>
+          <LayoutGrid size={22} strokeWidth={activeTab === 'dashboard' ? 2.5 : 2} />
+        </button>
+
+        <button onClick={() => setActiveTab('crm')} className={`flex flex-col items-center gap-1 ${activeTab === 'crm' ? 'text-black' : 'text-gray-400'}`}>
+          <Users size={22} strokeWidth={activeTab === 'crm' ? 2.5 : 2} />
+        </button>
+
+        {/* Central Action Hub */}
+        <button
+          onClick={() => setIsActionMenuOpen(true)}
+          className="w-12 h-12 bg-black text-white rounded-full flex items-center justify-center shadow-lg active:scale-95 transition-transform -mt-6 ring-4 ring-white"
+        >
+          <Plus size={24} />
+        </button>
+
+        <button onClick={() => setActiveTab('payments')} className={`flex flex-col items-center gap-1 ${activeTab === 'payments' ? 'text-black' : 'text-gray-400'}`}>
+          <CreditCard size={22} strokeWidth={activeTab === 'payments' ? 2.5 : 2} />
+        </button>
+
+        <button onClick={() => setActiveTab('settings')} className={`flex flex-col items-center gap-1 ${activeTab === 'settings' ? 'text-black' : 'text-gray-400'}`}>
+          <Settings size={22} strokeWidth={activeTab === 'settings' ? 2.5 : 2} />
+        </button>
       </nav>
+
+      {/* Mobile Action Sheet Overlay */}
+      {isActionMenuOpen && (
+        <div className="fixed inset-0 z-[60] lg:hidden bg-black/40 backdrop-blur-sm flex items-end justify-center" onClick={() => setIsActionMenuOpen(false)}>
+          <div className="bg-white w-full rounded-t-[32px] p-6 pb-12 animate-in slide-in-from-bottom duration-300" onClick={(e) => e.stopPropagation()}>
+            <div className="w-12 h-1.5 bg-[#F0F0F0] rounded-full mx-auto mb-8"></div>
+
+            <h3 className="text-xl font-serif font-bold text-[#121212] mb-6">Create New</h3>
+
+            <div className="space-y-3">
+              <button
+                onClick={() => { setActiveModal('payment_link'); setIsActionMenuOpen(false); }}
+                className="w-full p-4 bg-white border border-gray-100 rounded-2xl flex items-center gap-4 active:bg-gray-50 transition-all shadow-sm"
+              >
+                <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center border border-blue-100">
+                  <Zap size={22} />
+                </div>
+                <div className="text-left">
+                  <p className="text-base font-bold text-[#121212]">Payment Link</p>
+                  <p className="text-xs text-gray-400">Secure checkout for any product</p>
+                </div>
+              </button>
+              <button
+                onClick={() => { setActiveModal('invoice'); setIsActionMenuOpen(false); }}
+                className="w-full p-4 bg-white border border-gray-100 rounded-2xl flex items-center gap-4 active:bg-gray-50 transition-all shadow-sm"
+              >
+                <div className="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center border border-emerald-100">
+                  <FileText size={22} />
+                </div>
+                <div className="text-left">
+                  <p className="text-base font-bold text-[#121212]">Invoice</p>
+                  <p className="text-xs text-gray-400">Bill a client directly</p>
+                </div>
+              </button>
+              <button
+                onClick={() => { setActiveModal('subscription'); setIsActionMenuOpen(false); }}
+                className="w-full p-4 bg-white border border-gray-100 rounded-2xl flex items-center gap-4 active:bg-gray-50 transition-all shadow-sm"
+              >
+                <div className="w-12 h-12 bg-amber-50 text-amber-600 rounded-xl flex items-center justify-center border border-amber-100">
+                  <RefreshCw size={22} />
+                </div>
+                <div className="text-left">
+                  <p className="text-base font-bold text-[#121212]">Subscription</p>
+                  <p className="text-xs text-gray-400">Recurring revenue engine</p>
+                </div>
+              </button>
+            </div>
+            <button
+              onClick={() => setIsActionMenuOpen(false)}
+              className="w-full mt-6 py-4 rounded-xl font-bold text-gray-400 hover:text-black transition-all"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Global Quick Action Modals */}
       <GlobalHyperLinkEngine

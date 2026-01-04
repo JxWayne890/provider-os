@@ -29,11 +29,11 @@ const RelationshipHub: React.FC<RelationshipHubProps> = ({
     return (
         <div className="space-y-8 animate-reveal">
             {/* Premium Segmented Control */}
-            <div className="flex justify-center">
-                <div className="bg-white/50 backdrop-blur-md p-1.5 rounded-[22px] border border-black/5 shadow-sm inline-flex">
+            <div className="flex justify-center px-4 md:px-0">
+                <div className="bg-white/50 backdrop-blur-md p-1.5 rounded-[22px] border border-black/5 shadow-sm flex w-full md:w-auto md:inline-flex">
                     <button
                         onClick={() => setView('pipeline')}
-                        className={`flex items-center gap-3 px-8 py-3 rounded-2xl text-sm font-bold transition-all ${view === 'pipeline'
+                        className={`flex-1 md:flex-none flex items-center justify-center gap-2 md:gap-3 px-4 md:px-8 py-3 rounded-2xl text-sm font-bold transition-all ${view === 'pipeline'
                             ? 'bg-white text-[#B8860B] shadow-lg shadow-black/5'
                             : 'text-[#86868B] hover:text-[#1D1D1F]'
                             }`}
@@ -43,7 +43,7 @@ const RelationshipHub: React.FC<RelationshipHubProps> = ({
                     </button>
                     <button
                         onClick={() => setView('portfolio')}
-                        className={`flex items-center gap-3 px-8 py-3 rounded-2xl text-sm font-bold transition-all ${view === 'portfolio'
+                        className={`flex-1 md:flex-none flex items-center justify-center gap-2 md:gap-3 px-4 md:px-8 py-3 rounded-2xl text-sm font-bold transition-all ${view === 'portfolio'
                             ? 'bg-white text-[#B8860B] shadow-lg shadow-black/5'
                             : 'text-[#86868B] hover:text-[#1D1D1F]'
                             }`}
