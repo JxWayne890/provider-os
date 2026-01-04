@@ -31,10 +31,10 @@ const IntegrationsHub: React.FC<IntegrationsHubProps> = ({ onRefresh }) => {
                 setProductPrice('');
                 onRefresh();
             } else {
-                throw new Error("Failed to create product via n8n");
+                throw new Error("Direct cloud sync failed. Backend integration required.");
             }
         } catch (err) {
-            setStatus({ type: 'error', message: "Production creation failed. Check n8n logs." });
+            setStatus({ type: 'error', message: "Cloud synchronization failed. Please check your backend configuration." });
         } finally {
             setIsCreatingProduct(false);
         }
@@ -153,7 +153,7 @@ const IntegrationsHub: React.FC<IntegrationsHubProps> = ({ onRefresh }) => {
                                 </p>
                                 <div className="flex items-center gap-2 text-[#B8860B] font-bold text-xs">
                                     <ArrowUpRight size={14} />
-                                    <span>Sync Status: Authenticated via n8n</span>
+                                    <span>Sync Status: Cloud Infrastructure Active</span>
                                 </div>
                             </div>
                         </div>
