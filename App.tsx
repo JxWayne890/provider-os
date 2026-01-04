@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { LayoutDashboard, Users, CreditCard, Calendar, Briefcase, CheckSquare, Settings, Menu, Bell, Search, Database, Target, FileText, Zap, LayoutGrid, ChevronRight, Sparkles, Package } from 'lucide-react';
+import { LayoutDashboard, Users, CreditCard, Calendar, Briefcase, CheckSquare, Settings, Menu, Bell, Search, Database, Target, FileText, Zap, LayoutGrid, ChevronRight, Sparkles, Package, Plus, RefreshCw } from 'lucide-react';
 import Dashboard from './components/Dashboard';
 import LeadsManager from './components/LeadsManager';
 import DealsManager from './components/DealsManager';
@@ -10,7 +10,8 @@ import SessionsManager from './components/SessionsManager';
 import ProjectsManager from './components/ProjectsManager';
 import OperationsManager from './components/OperationsManager';
 import SettingsManager from './components/SettingsManager';
-import IntegrationsHub from './components/IntegrationsHub';
+import RelationshipHub from './components/RelationshipHub';
+import GlobalHyperLinkEngine from './components/GlobalHyperLinkEngine';
 import { fetchSheetData, updateSheetRow } from './services/sheetsService';
 import { Lead, Client, Payment, Session, DealStage, ClientStatus, Deal, Project, Task, Metric, ConfigItem } from './types';
 
@@ -24,11 +25,10 @@ const TABS = {
   PROJECTS: 'PROJECTS',
   TASKS: 'TASKS',
   METRICS: 'METRICS',
-  CONFIG: 'CONFIG',
-  STRIPE_HUB: 'STRIPE_HUB'
+  CONFIG: 'CONFIG'
 };
 
-type Tab = 'dashboard' | 'leads' | 'deals' | 'clients' | 'payments' | 'sessions' | 'projects' | 'tasks' | 'settings' | 'stripe_hub';
+type Tab = 'dashboard' | 'crm' | 'deals' | 'payments' | 'sessions' | 'projects' | 'tasks' | 'settings';
 
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
@@ -46,6 +46,10 @@ const App: React.FC = () => {
 
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
+
+  // Global Action Menu State
+  const [isActionMenuOpen, setIsActionMenuOpen] = useState(false);
+  const [activeModal, setActiveModal] = useState<'payment_link' | 'invoice' | 'subscription' | null>(null);
 
   // Global Data Synchronization
   const syncAllData = async () => {
@@ -179,14 +183,12 @@ const App: React.FC = () => {
           <nav className="space-y-2">
             {[
               { id: 'dashboard', icon: LayoutGrid, label: 'Dashboard' },
-              { id: 'leads', icon: Target, label: 'Leads Engine' },
+              { id: 'crm', icon: Users, label: 'Global CRM' },
               { id: 'deals', icon: FileText, label: 'Deals/Proposals' },
-              { id: 'clients', icon: Users, label: 'Clients' },
               { id: 'payments', icon: CreditCard, label: 'Payments' },
               { id: 'sessions', icon: Calendar, label: 'Sessions' },
               { id: 'projects', icon: Briefcase, label: 'Projects' },
               { id: 'tasks', icon: CheckSquare, label: 'Operations' },
-              { id: 'stripe_hub', icon: Package, label: 'Stripe Hub' },
             ].map((item, idx) => (
               <button
                 key={item.id}
@@ -233,6 +235,43 @@ const App: React.FC = () => {
           </div>
 
           <div className="hidden lg:flex items-center gap-4 animate-reveal">
+            {/* Global Quick Actions (Stripe-like) */}
+            <div className="relative">
+              <button
+                onClick={() => setIsActionMenuOpen(!isActionMenuOpen)}
+                className="w-10 h-10 bg-[#0066CC] text-white rounded-full flex items-center justify-center hover:bg-[#0052A3] transition-all shadow-lg shadow-[#0066CC]/20"
+              >
+                <Plus size={24} />
+              </button>
+
+              {isActionMenuOpen && (
+                <div className="absolute right-0 mt-3 w-56 bg-white rounded-2xl shadow-2xl border border-black/5 p-2 z-50 animate-reveal">
+                  <div className="text-[10px] font-bold text-[#86868B] uppercase tracking-widest p-3 border-b border-[#F5F5F7] mb-1">Create New...</div>
+                  <button
+                    onClick={() => { setActiveModal('payment_link'); setIsActionMenuOpen(false); }}
+                    className="w-full text-left px-4 py-3 text-sm font-semibold text-[#1D1D1F] hover:bg-[#F5F5F7] rounded-xl flex items-center gap-3 transition-all"
+                  >
+                    <Zap size={18} className="text-[#0066CC]" />
+                    Payment Link
+                  </button>
+                  <button
+                    onClick={() => { setActiveModal('invoice'); setIsActionMenuOpen(false); }}
+                    className="w-full text-left px-4 py-3 text-sm font-semibold text-[#1D1D1F] hover:bg-[#F5F5F7] rounded-xl flex items-center gap-3 transition-all"
+                  >
+                    <FileText size={18} className="text-[#1D9D60]" />
+                    Invoice
+                  </button>
+                  <button
+                    onClick={() => { setActiveModal('subscription'); setIsActionMenuOpen(false); }}
+                    className="w-full text-left px-4 py-3 text-sm font-semibold text-[#1D1D1F] hover:bg-[#F5F5F7] rounded-xl flex items-center gap-3 transition-all"
+                  >
+                    <RefreshCw size={18} className="text-[#B8860B]" />
+                    Subscription
+                  </button>
+                </div>
+              )}
+            </div>
+
             <button className="p-2.5 text-[#86868B] hover:text-[#1D1D1F] hover:bg-[#F5F5F7] rounded-xl transition-all relative">
               <Bell size={20} />
               <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
@@ -250,15 +289,26 @@ const App: React.FC = () => {
           ) : (
             <>
               {activeTab === 'dashboard' && <Dashboard leads={leads} clients={clients} payments={payments} metrics={metrics} configs={configs} onConnectStripe={() => setActiveTab('settings')} />}
-              {activeTab === 'leads' && <LeadsManager leads={leads} onUpdateLead={updateLead} />}
+              {activeTab === 'crm' && (
+                <RelationshipHub
+                  leads={leads}
+                  clients={clients}
+                  payments={payments}
+                  projects={projects}
+                  sessions={sessions}
+                  onUpdateLead={updateLead}
+                  onRequestLink={(lead) => {
+                    // We could pre-select the lead in GlobalHyperLinkEngine if we want
+                    setActiveModal('payment_link');
+                  }}
+                />
+              )}
               {activeTab === 'deals' && <DealsManager deals={deals} onUpdateDeal={() => { }} />}
               {activeTab === 'payments' && <PaymentsManager payments={payments} clients={clients} />}
               {activeTab === 'sessions' && <SessionsManager sessions={sessions} />}
               {activeTab === TABS.PROJECTS && <ProjectsManager projects={projects} payments={payments} />}
-              {activeTab === 'stripe_hub' && <IntegrationsHub onRefresh={syncAllData} />}
               {activeTab === 'tasks' && <OperationsManager tasks={tasks} />}
               {activeTab === 'settings' && <SettingsManager configs={configs} onRefresh={syncAllData} />}
-              {activeTab === 'clients' && <ClientsManager clients={clients} payments={payments} projects={projects} sessions={sessions} />}
             </>
           )}
         </div>
@@ -268,7 +318,7 @@ const App: React.FC = () => {
       <nav className="fixed bottom-0 left-0 right-0 lg:hidden bottom-nav z-50 flex justify-around items-center px-4 py-3 animate-in fade-in slide-in-from-bottom duration-500">
         {[
           { id: 'dashboard', icon: LayoutGrid, label: 'Stats' },
-          { id: 'leads', icon: Target, label: 'Leads' },
+          { id: 'crm', icon: Users, label: 'CRM' },
           { id: 'deals', icon: FileText, label: 'Flow' },
           { id: 'payments', icon: CreditCard, label: 'Pay' },
           { id: 'settings', icon: Settings, label: 'Cfg' },
@@ -283,6 +333,14 @@ const App: React.FC = () => {
           </button>
         ))}
       </nav>
+
+      {/* Global Quick Action Modals */}
+      <GlobalHyperLinkEngine
+        isOpen={activeModal === 'payment_link'}
+        onClose={() => setActiveModal(null)}
+        leads={leads}
+        clients={clients}
+      />
     </div>
   );
 };

@@ -1,7 +1,7 @@
-
 import React, { useState } from 'react';
-import { Users, Search, Filter, Plus, Mail, Phone, MoreVertical, ExternalLink, ShieldCheck, AlertCircle, X, Calendar, DollarSign, Briefcase, FileText } from 'lucide-react';
+import { Users, Search, Filter, Plus, Mail, Phone, MoreVertical, ExternalLink, ShieldCheck, AlertCircle, X, Calendar, DollarSign, Briefcase, FileText, RefreshCw, CheckCircle2 } from 'lucide-react';
 import { Client, ClientStatus, Payment, Project, Session } from '../types';
+import { createStripeInvoice, createStripeCustomer, updateSheetRow } from '../services/sheetsService';
 
 interface ClientsManagerProps {
     clients: Client[];
@@ -14,6 +14,88 @@ interface ClientsManagerProps {
 const ClientsManager: React.FC<ClientsManagerProps> = ({ clients, payments, projects, sessions, onUpdateClient }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedClient, setSelectedClient] = useState<Client | null>(null);
+    const [status, setStatus] = useState<{ type: 'success' | 'error', message: string } | null>(null);
+
+    // Invoice Terminal state
+    const [isCreatingInvoice, setIsCreatingInvoice] = useState(false);
+    const [invAmount, setInvAmount] = useState('');
+    const [invDesc, setInvDesc] = useState('');
+    const [invMarkPaid, setInvMarkPaid] = useState(true);
+
+    // Customer Genesis state
+    const [isCreatingCustomer, setIsCreatingCustomer] = useState(false);
+
+    // New Client Engine state
+    const [isNewClientModalOpen, setIsNewClientModalOpen] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [newClient, setNewClient] = useState({
+        companyName: '',
+        primaryContact: '',
+        email: '',
+        phone: '',
+        servicePackage: 'Executive Retainer',
+        billingType: 'Subscription' as const,
+        monthlyValue: 2500,
+        totalContractValue: 30000,
+        startDate: new Date().toISOString().split('T')[0],
+        notes: ''
+    });
+
+    const handleCreateClient = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setIsSubmitting(true);
+        setStatus(null);
+
+        try {
+            const newId = `CL-${Date.now().toString(36).toUpperCase()}`;
+            const rowData = [
+                newId,
+                '', // leadId
+                newClient.companyName,
+                newClient.primaryContact,
+                newClient.email,
+                newClient.phone,
+                'Onboarding', // status
+                newClient.servicePackage,
+                newClient.billingType,
+                newClient.monthlyValue,
+                newClient.totalContractValue,
+                newClient.startDate,
+                '', // stripeCustomerId
+                newClient.notes,
+                85 // initial healthScore
+            ];
+
+            await updateSheetRow('CLIENTS', newId, rowData);
+
+            setStatus({ type: 'success', message: 'High-value partnership successfully initialized.' });
+            setIsNewClientModalOpen(false);
+
+            // Reset form
+            setNewClient({
+                companyName: '',
+                primaryContact: '',
+                email: '',
+                phone: '',
+                servicePackage: 'Executive Retainer',
+                billingType: 'Subscription',
+                monthlyValue: 2500,
+                totalContractValue: 30000,
+                startDate: new Date().toISOString().split('T')[0],
+                notes: ''
+            });
+
+            // Trigger data refresh if handler exists
+            if (onUpdateClient) {
+                // We create a mock client object to satisfy the callback and trigger RE-FETCH in parent
+                onUpdateClient({ id: newId } as any);
+            }
+        } catch (err: any) {
+            setStatus({ type: 'error', message: err.message || 'Creation failed' });
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
 
     const filteredClients = clients.filter(c =>
         c.companyName.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -49,13 +131,57 @@ const ClientsManager: React.FC<ClientsManagerProps> = ({ clients, payments, proj
         ...clientSessions.map(s => ({ date: s.scheduledAt, type: 'session', data: s, icon: Calendar }))
     ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
+    const handleCreateInvoice = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!selectedClient || !selectedClient.stripeCustomerId) return;
+
+        setIsCreatingInvoice(true);
+        setStatus(null);
+        try {
+            const result = await createStripeInvoice(selectedClient.stripeCustomerId, parseFloat(invAmount), invDesc, invMarkPaid);
+            if (result.success) {
+                setStatus({
+                    type: 'success',
+                    message: `Invoice ${result.status === 'paid' ? 'Paid' : 'Created'}! ID: ${result.invoiceId}`
+                });
+                setInvAmount('');
+                setInvDesc('');
+                // Note: onRefresh isn't passed here, but App.tsx likely syncs. We can rely on user refreshing OR suggest onRefresh prop.
+            }
+        } catch (err: any) {
+            setStatus({ type: 'error', message: err.message || "Invoice creation failed." });
+        } finally {
+            setIsCreatingInvoice(false);
+        }
+    };
+
+    const handleCreateCustomer = async (client: Client) => {
+        setIsCreatingCustomer(true);
+        setStatus(null);
+        try {
+            const stripeResult = await createStripeCustomer(client.companyName, client.email, { clientId: client.id });
+            if (stripeResult.success) {
+                const updatedClient = { ...client, stripeCustomerId: stripeResult.customerId };
+                const sheetResult = await updateSheetRow('CLIENTS', client.id, updatedClient);
+
+                if (sheetResult) {
+                    setStatus({ type: 'success', message: `Identity initialized! ID: ${stripeResult.customerId}` });
+                    if (onUpdateClient) onUpdateClient(updatedClient);
+                    setSelectedClient(updatedClient);
+                } else {
+                    throw new Error("Stripe account created, but Sheet sync failed.");
+                }
+            }
+        } catch (err: any) {
+            setStatus({ type: 'error', message: err.message || "Customer genesis failed." });
+        } finally {
+            setIsCreatingCustomer(false);
+        }
+    };
+
     return (
         <div className="space-y-10 animate-reveal pb-20">
-            <header className="flex flex-col md:flex-row md:items-end justify-between gap-6">
-                <div>
-                    <h1 className="text-5xl font-serif font-bold text-[#1D1D1F] tracking-tight">Global CRM</h1>
-                    <p className="text-[#86868B] mt-2 font-medium tracking-wide uppercase text-xs">Managing {clients.length} active high-value partnerships</p>
-                </div>
+            <header className="flex flex-col md:flex-row md:items-center justify-end gap-6">
                 <div className="flex items-center gap-4">
                     <div className="flex items-center gap-2 px-4 py-2 bg-white border border-black/5 rounded-2xl text-[#86868B] shadow-sm">
                         <Search size={16} />
@@ -70,7 +196,10 @@ const ClientsManager: React.FC<ClientsManagerProps> = ({ clients, payments, proj
                     <button className="p-2.5 bg-white border border-black/5 rounded-2xl text-[#86868B] hover:text-[#1D1D1F] transition-all shadow-sm">
                         <Filter size={20} />
                     </button>
-                    <button className="flex items-center gap-2 px-6 py-3 luminous-button-gold rounded-2xl text-sm font-bold shadow-lg shadow-[#B8860B]/20">
+                    <button
+                        onClick={() => setIsNewClientModalOpen(true)}
+                        className="flex items-center gap-2 px-6 py-3 luminous-button-gold rounded-2xl text-sm font-bold shadow-lg shadow-[#B8860B]/20"
+                    >
                         <Plus size={18} /> New Client
                     </button>
                 </div>
@@ -139,7 +268,12 @@ const ClientsManager: React.FC<ClientsManagerProps> = ({ clients, payments, proj
                                     <td className="px-8 py-5">
                                         <div className="flex flex-col">
                                             <span className="text-[#1D1D1F] font-bold font-mono">${client.monthlyValue?.toLocaleString()}/mo</span>
-                                            <span className="text-[10px] text-[#86868B] font-bold">LTV: ${client.totalContractValue?.toLocaleString()}</span>
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-[10px] text-[#86868B] font-bold">LTV: ${client.totalContractValue?.toLocaleString()}</span>
+                                                {client.healthScore < 85 && (
+                                                    <span className="text-[8px] bg-red-500/10 text-red-500 px-1.5 py-0.5 rounded-full font-bold uppercase tracking-tighter">Retention Risk</span>
+                                                )}
+                                            </div>
                                         </div>
                                     </td>
                                     <td className="px-8 py-5 text-right">
@@ -206,6 +340,75 @@ const ClientsManager: React.FC<ClientsManagerProps> = ({ clients, payments, proj
                                 </div>
                             </div>
 
+                            {/* Decentralized Stripe Tools */}
+                            <div className="space-y-6 pt-4 border-t border-[#F5F5F7]">
+                                <div className="flex justify-between items-center">
+                                    <h3 className="text-xs font-bold text-[#86868B] uppercase tracking-[0.2em]">Financial Terminal</h3>
+                                    {status && (
+                                        <div className={`px-4 py-2 rounded-xl text-[10px] font-bold animate-reveal ${status.type === 'success' ? 'bg-[#1D9D60]/10 text-[#1D9D60]' : 'bg-red-500/10 text-red-500'}`}>
+                                            {status.message}
+                                        </div>
+                                    )}
+                                </div>
+
+                                {!selectedClient.stripeCustomerId ? (
+                                    <div className="bg-[#B8860B]/5 border border-[#B8860B]/20 p-6 rounded-[32px] flex items-center justify-between">
+                                        <div>
+                                            <p className="text-sm font-serif font-bold text-[#1D1D1F]">Initialize Stripe Identity</p>
+                                            <p className="text-[10px] text-[#86868B]">Sync this CRM contact to Stripe for billing.</p>
+                                        </div>
+                                        <button
+                                            onClick={() => handleCreateCustomer(selectedClient)}
+                                            disabled={isCreatingCustomer}
+                                            className="bg-black text-white px-6 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest flex items-center gap-2 active:scale-95 transition-all"
+                                        >
+                                            {isCreatingCustomer ? <RefreshCw size={14} className="animate-spin" /> : <Plus size={14} />}
+                                            Initialize
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <div className="bg-white border border-black/5 p-6 rounded-[32px] space-y-6 shadow-sm">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-8 h-8 bg-[#1D9D60]/10 rounded-xl flex items-center justify-center">
+                                                <DollarSign size={16} className="text-[#1D9D60]" />
+                                            </div>
+                                            <p className="text-xs font-bold text-[#1D1D1F] uppercase tracking-widest">Pulse Invoice Terminal</p>
+                                        </div>
+
+                                        <form onSubmit={handleCreateInvoice} className="grid grid-cols-2 gap-4">
+                                            <div className="col-span-2">
+                                                <input
+                                                    type="text" required value={invDesc} onChange={(e) => setInvDesc(e.target.value)}
+                                                    placeholder="Invoice Memo (e.g. Monthly Retainer)"
+                                                    className="w-full bg-[#F5F5F7] border border-black/5 rounded-xl py-3 px-4 text-xs font-medium"
+                                                />
+                                            </div>
+                                            <div className="col-span-1">
+                                                <input
+                                                    type="number" required value={invAmount} onChange={(e) => setInvAmount(e.target.value)}
+                                                    placeholder="Amount (USD)"
+                                                    className="w-full bg-[#F5F5F7] border border-black/5 rounded-xl py-3 px-4 text-xs font-medium"
+                                                />
+                                            </div>
+                                            <button
+                                                type="submit"
+                                                disabled={isCreatingInvoice}
+                                                className="col-span-1 bg-black text-white rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-[#1D1D1F] transition-all flex items-center justify-center gap-2"
+                                            >
+                                                {isCreatingInvoice ? <RefreshCw size={14} className="animate-spin" /> : <Plus size={14} />}
+                                                {invMarkPaid ? 'Settle' : 'Send'}
+                                            </button>
+                                            <div className="col-span-2 flex items-center gap-2 cursor-pointer pt-2" onClick={() => setInvMarkPaid(!invMarkPaid)}>
+                                                <div className={`w-8 h-4 rounded-full relative transition-all ${invMarkPaid ? 'bg-[#1D9D60]' : 'bg-black/10'}`}>
+                                                    <div className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-all ${invMarkPaid ? 'right-0.5' : 'left-0.5'}`}></div>
+                                                </div>
+                                                <span className="text-[9px] font-bold text-[#86868B] uppercase tracking-tighter">Settle Instantly (Paid Out-of-Band)</span>
+                                            </div>
+                                        </form>
+                                    </div>
+                                )}
+                            </div>
+
                             {/* History Timeline */}
                             <div className="space-y-6">
                                 <h3 className="text-xs font-bold text-[#86868B] uppercase tracking-[0.2em] flex items-center gap-3">
@@ -252,6 +455,146 @@ const ClientsManager: React.FC<ClientsManagerProps> = ({ clients, payments, proj
                                 Launch Project
                             </button>
                         </div>
+                    </div>
+                </div>
+            )}
+            {/* New Client Initialization Modal */}
+            {isNewClientModalOpen && (
+                <div className="fixed inset-0 z-[60] flex items-center justify-center p-6 bg-black/40 backdrop-blur-xl animate-reveal">
+                    <div className="w-full max-w-4xl bg-white rounded-[40px] shadow-2xl border border-black/5 overflow-hidden flex flex-col max-h-[90vh]">
+                        <div className="p-8 border-b border-[#F5F5F7] flex justify-between items-center">
+                            <div className="flex items-center gap-4">
+                                <div className="w-12 h-12 bg-black rounded-2xl flex items-center justify-center">
+                                    <Plus size={24} className="text-[#B8860B]" />
+                                </div>
+                                <div>
+                                    <h3 className="text-2xl font-serif font-bold text-[#1D1D1F]">Initialize Partnership</h3>
+                                    <p className="text-[10px] text-[#86868B] font-bold uppercase tracking-widest">Deploying core infrastructure for new client</p>
+                                </div>
+                            </div>
+                            <button onClick={() => setIsNewClientModalOpen(false)} className="p-2 hover:bg-[#F5F5F7] rounded-xl transition-all"><X size={24} className="text-[#86868B]" /></button>
+                        </div>
+
+                        <form onSubmit={handleCreateClient} className="flex-1 overflow-y-auto p-10">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                <div className="space-y-6">
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-bold text-[#86868B] uppercase tracking-widest ml-1">Company Name</label>
+                                        <input
+                                            required
+                                            className="w-full bg-[#F5F5F7] border border-black/5 rounded-2xl py-4 px-6 text-sm focus:outline-none focus:ring-2 focus:ring-[#B8860B]/10"
+                                            placeholder="e.g. Acme Corp"
+                                            value={newClient.companyName}
+                                            onChange={e => setNewClient({ ...newClient, companyName: e.target.value })}
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-bold text-[#86868B] uppercase tracking-widest ml-1">Primary Contact</label>
+                                        <input
+                                            required
+                                            className="w-full bg-[#F5F5F7] border border-black/5 rounded-2xl py-4 px-6 text-sm"
+                                            placeholder="John Doe"
+                                            value={newClient.primaryContact}
+                                            onChange={e => setNewClient({ ...newClient, primaryContact: e.target.value })}
+                                        />
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="space-y-2">
+                                            <label className="text-[10px] font-bold text-[#86868B] uppercase tracking-widest ml-1">Email</label>
+                                            <input
+                                                required type="email"
+                                                className="w-full bg-[#F5F5F7] border border-black/5 rounded-2xl py-4 px-6 text-sm"
+                                                placeholder="john@example.com"
+                                                value={newClient.email}
+                                                onChange={e => setNewClient({ ...newClient, email: e.target.value })}
+                                            />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <label className="text-[10px] font-bold text-[#86868B] uppercase tracking-widest ml-1">Phone</label>
+                                            <input
+                                                className="w-full bg-[#F5F5F7] border border-black/5 rounded-2xl py-4 px-6 text-sm"
+                                                placeholder="+1 (555) 000-0000"
+                                                value={newClient.phone}
+                                                onChange={e => setNewClient({ ...newClient, phone: e.target.value })}
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="space-y-6">
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-bold text-[#86868B] uppercase tracking-widest ml-1">Service Package</label>
+                                        <select
+                                            className="w-full bg-[#F5F5F7] border border-black/5 rounded-2xl py-4 px-6 text-sm appearance-none"
+                                            value={newClient.servicePackage}
+                                            onChange={e => setNewClient({ ...newClient, servicePackage: e.target.value })}
+                                        >
+                                            <option>Executive Retainer</option>
+                                            <option>Strategic Growth Bundle</option>
+                                            <option>Operational Audit</option>
+                                            <option>Full Scale Care</option>
+                                        </select>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="space-y-2">
+                                            <label className="text-[10px] font-bold text-[#86868B] uppercase tracking-widest ml-1">Monthly MRR ($)</label>
+                                            <input
+                                                type="number"
+                                                className="w-full bg-[#F5F5F7] border border-black/5 rounded-2xl py-4 px-6 text-sm"
+                                                value={newClient.monthlyValue}
+                                                onChange={e => setNewClient({ ...newClient, monthlyValue: parseInt(e.target.value) })}
+                                            />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <label className="text-[10px] font-bold text-[#86868B] uppercase tracking-widest ml-1">Contract Value ($)</label>
+                                            <input
+                                                type="number"
+                                                className="w-full bg-[#F5F5F7] border border-black/5 rounded-2xl py-4 px-6 text-sm"
+                                                value={newClient.totalContractValue}
+                                                onChange={e => setNewClient({ ...newClient, totalContractValue: parseInt(e.target.value) })}
+                                            />
+                                        </div>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-bold text-[#86868B] uppercase tracking-widest ml-1">Start Date</label>
+                                        <input
+                                            type="date"
+                                            className="w-full bg-[#F5F5F7] border border-black/5 rounded-2xl py-4 px-6 text-sm"
+                                            value={newClient.startDate}
+                                            onChange={e => setNewClient({ ...newClient, startDate: e.target.value })}
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="mt-8 space-y-2">
+                                <label className="text-[10px] font-bold text-[#86868B] uppercase tracking-widest ml-1">Strategic Notes</label>
+                                <textarea
+                                    className="w-full bg-[#F5F5F7] border border-black/5 rounded-2xl py-4 px-6 text-sm h-32 resize-none"
+                                    placeholder="Initial discovery notes, pain points, core objectives..."
+                                    value={newClient.notes}
+                                    onChange={e => setNewClient({ ...newClient, notes: e.target.value })}
+                                />
+                            </div>
+
+                            <div className="mt-10 flex gap-4">
+                                <button
+                                    type="button"
+                                    onClick={() => setIsNewClientModalOpen(false)}
+                                    className="flex-1 py-4 bg-white border border-black/5 text-[#86868B] rounded-2xl text-[11px] font-bold uppercase tracking-widest hover:text-[#1D1D1F] transition-all"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={isSubmitting}
+                                    className="flex-3 py-4 bg-black text-white rounded-2xl text-[11px] font-bold uppercase tracking-widest hover:bg-[#1D1D1F] transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                                >
+                                    {isSubmitting ? <RefreshCw className="animate-spin" size={16} /> : <ShieldCheck size={16} />}
+                                    Deploy Partnership Infrastructure
+                                </button>
+                            </div>
+                        </form>
                     </div>
                 </div>
             )}

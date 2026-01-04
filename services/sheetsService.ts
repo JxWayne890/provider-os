@@ -10,6 +10,7 @@
 
 const SPREADSHEET_ID = '12su-WYevjlOFO6v-SkmtXLhhQtWNByZBcuK-p4xNrd0';
 const API_KEY = import.meta.env.VITE_GOOGLE_API_KEY || '';
+const RELAY_URL = 'http://localhost:3001';
 
 /**
  * FETCH LOGIC
@@ -71,51 +72,231 @@ export const fetchSheetData = async (tabName: string) => {
 
 /**
  * WRITE LOGIC
- * Uses Local Persistence (Works without external backend).
+ * Uses Local Relay (Secure) with Local Fallback.
  */
 export const updateSheetRow = async (tabName: string, rowId: string, rowData: any) => {
     try {
-        const storageKey = `OS_LOCAL_${tabName}`;
-        const existing = JSON.parse(localStorage.getItem(storageKey) || '[]');
+        // 1. Try Local Relay (for Sheet Write-Back)
+        const response = await fetch(RELAY_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                action: 'update',
+                tab: tabName,
+                id: rowId,
+                data: rowData
+            })
+        });
 
-        // Find if row exists by ID (index 0)
-        const index = existing.findIndex((r: any) => r[0] === rowId);
-
-        // Convert rowData object/array to Sheet format if needed
-        let row = rowData;
-        if (tabName === 'CONFIG') {
-            row = [rowData['Setting Key'], rowData['Value'], rowData['Description'], rowData['Category']];
-        } else if (!Array.isArray(rowData)) {
-            row = Object.values(rowData);
-        }
-
-        if (index >= 0) {
-            existing[index] = row;
-        } else {
-            existing.push(row);
-        }
-
-        localStorage.setItem(storageKey, JSON.stringify(existing));
-        console.log(`Saved to local persistence: ${tabName}`);
-        return true;
+        if (response.ok) return true;
+        throw new Error("Relay unavailable");
     } catch (e) {
-        console.error("Local persistence error:", e);
-        return false;
+        // 2. Fallback to Local Persistence
+        console.warn("Relay failed, falling back to local storage:", e);
+        try {
+            const storageKey = `OS_LOCAL_${tabName}`;
+            const existing = JSON.parse(localStorage.getItem(storageKey) || '[]');
+            const index = existing.findIndex((r: any) => r[0] === rowId);
+
+            let row = rowData;
+            if (tabName === 'CONFIG') {
+                row = [rowData['Setting Key'], rowData['Value'], rowData['Description'], rowData['Category']];
+            } else if (!Array.isArray(rowData)) {
+                row = Object.values(rowData);
+            }
+
+            if (index >= 0) existing[index] = row;
+            else existing.push(row);
+
+            localStorage.setItem(storageKey, JSON.stringify(existing));
+            return true;
+        } catch (err) {
+            console.error("Critical write failure:", err);
+            return false;
+        }
     }
 };
 
 /**
  * STRIPE ACTIONS
  */
-export const createStripePaymentLink = async (leadId: string, companyName: string, amount: number) => {
-    console.error("Cloud actions require a secure backend integration. Please configure your integration relay.");
-    return null;
+export const createStripePaymentLink = async (leadId: string, companyName: string, amount: number, priceId?: string) => {
+    try {
+        const response = await fetch(RELAY_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                action: 'create_payment_link',
+                leadId,
+                companyName,
+                amount: amount * 100,
+                priceId
+            })
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            return data.url;
+        }
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `Server Error ${response.status}`);
+    } catch (e: any) {
+        console.error("Relay Connection Error:", e);
+        throw e;
+    }
 };
 
 /**
  * Creates a new Stripe Product and Price.
  */
 export const createStripeProduct = async (name: string, description: string, amount: number, type: 'one_time' | 'recurring') => {
-    console.error("Cloud actions require a secure backend integration. Please configure your integration relay.");
-    return null;
+    try {
+        const response = await fetch(RELAY_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                action: 'create_product',
+                name,
+                description,
+                amount: amount * 100,
+                type
+            })
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            return data;
+        }
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `Server Error ${response.status}`);
+    } catch (e: any) {
+        console.error("Relay Connection Error:", e);
+        throw e;
+    }
+};
+
+/**
+ * Creates and optionally pays a Stripe Invoice.
+ */
+export const createStripeInvoice = async (stripeCustomerId: string, amount: number, description: string, markPaid: boolean) => {
+    try {
+        const response = await fetch(RELAY_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                action: 'create_invoice',
+                stripeCustomerId,
+                amount: amount * 100,
+                description,
+                markPaid
+            })
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            return data;
+        }
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `Server Error ${response.status}`);
+    } catch (e: any) {
+        console.error("Relay Connection Error:", e);
+        throw e;
+    }
+};
+
+/**
+ * Creates a new Stripe Customer.
+ */
+export const createStripeCustomer = async (name: string, email: string, metadata?: any) => {
+    try {
+        const response = await fetch(RELAY_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                action: 'create_customer',
+                name,
+                email,
+                metadata
+            })
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            return data;
+        }
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `Server Error ${response.status}`);
+    } catch (e: any) {
+        console.error("Relay Connection Error:", e);
+        throw e;
+    }
+};
+
+/**
+ * Lists active Stripe products.
+ */
+export const listStripeProducts = async () => {
+    try {
+        const response = await fetch(RELAY_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'list_products' })
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            return data.products || [];
+        }
+        throw new Error("Failed to fetch products");
+    } catch (e) {
+        console.error("Stripe Product List Error:", e);
+        return [];
+    }
+};
+
+/**
+ * Creates a new Stripe Payment Link.
+ */
+export const createPaymentLink = async (options: {
+    leadId: string;
+    leadEmail: string;
+    priceId?: string;
+    customProduct?: {
+        name: string;
+        amount: number;
+        interval?: string;
+    };
+    automatic_tax?: boolean;
+    allow_promotion_codes?: boolean;
+    collect_phone?: boolean;
+    collect_address?: boolean;
+    collect_tax_id?: boolean;
+    collect_customer_name?: boolean;
+    collect_business_name?: boolean;
+    payment_limit?: string;
+    require_tos?: boolean;
+    save_payment_details?: boolean;
+    submit_type?: 'pay' | 'book' | 'donate' | 'auto';
+    custom_fields?: any[];
+}) => {
+    try {
+        const response = await fetch(RELAY_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                action: 'create_payment_link',
+                ...options
+            })
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            return data;
+        }
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `Server Error ${response.status}`);
+    } catch (e: any) {
+        console.error("Relay Connection Error:", e);
+        throw e;
+    }
 };
