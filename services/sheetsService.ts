@@ -178,3 +178,36 @@ export const createStripePaymentLink = async (leadId: string, companyName: strin
         return null;
     }
 };
+
+/**
+ * Creates a new Stripe Product and Price.
+ */
+export const createStripeProduct = async (name: string, description: string, amount: number, type: 'one_time' | 'recurring') => {
+    if (!N8N_WEBHOOK_URL) {
+        console.error("n8n Webhook URL not configured for Stripe actions.");
+        return null;
+    }
+
+    try {
+        const response = await fetch(N8N_WEBHOOK_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                action: 'create_product',
+                name,
+                description,
+                amount: amount * 100,
+                type
+            })
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            return data; // Expecting { productId: '...', priceId: '...', url: '...' }
+        }
+        throw new Error(`n8n failed with status ${response.status}`);
+    } catch (e) {
+        console.error("Failed to create Stripe product:", e);
+        return null;
+    }
+};

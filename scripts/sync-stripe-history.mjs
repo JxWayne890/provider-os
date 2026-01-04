@@ -138,7 +138,7 @@ async function main() {
                 ch.paid ? 'Paid' : 'Pending',
                 new Date(ch.created * 1000).toISOString().split('T')[0],
                 ch.paid ? new Date(ch.created * 1000).toISOString().split('T')[0] : '',
-                ch.receipt_url || '#',
+                `https://dashboard.stripe.com/payments/${ch.id}`,
                 ch.description || `Payment from ${ch.billing_details?.name || 'Guest'}`
             ];
         });

@@ -192,7 +192,7 @@ const PaymentsManager: React.FC<PaymentsManagerProps> = ({ payments, clients }) 
                                     <p className="text-[10px] font-bold text-[#86868B] uppercase tracking-widest flex items-center gap-2">
                                         <Receipt size={12} className="text-[#B8860B]" /> Relationship
                                     </p>
-                                    <p className="text-base text-[#1D1D1F] font-bold">
+                                    <p className="text-base text-[#1D1D1F] font-bold break-all">
                                         {resolveClientName(selectedPayment.stripeCustomerId, selectedPayment.clientId)}
                                     </p>
                                 </div>

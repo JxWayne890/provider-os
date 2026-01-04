@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { LayoutDashboard, Users, CreditCard, Calendar, Briefcase, CheckSquare, Settings, Menu, Bell, Search, Database, Target, FileText, Zap, LayoutGrid, ChevronRight, Sparkles } from 'lucide-react';
+import { LayoutDashboard, Users, CreditCard, Calendar, Briefcase, CheckSquare, Settings, Menu, Bell, Search, Database, Target, FileText, Zap, LayoutGrid, ChevronRight, Sparkles, Package } from 'lucide-react';
 import Dashboard from './components/Dashboard';
 import LeadsManager from './components/LeadsManager';
 import DealsManager from './components/DealsManager';
@@ -10,6 +10,7 @@ import SessionsManager from './components/SessionsManager';
 import ProjectsManager from './components/ProjectsManager';
 import OperationsManager from './components/OperationsManager';
 import SettingsManager from './components/SettingsManager';
+import IntegrationsHub from './components/IntegrationsHub';
 import { fetchSheetData, updateSheetRow } from './services/sheetsService';
 import { Lead, Client, Payment, Session, DealStage, ClientStatus, Deal, Project, Task, Metric, ConfigItem } from './types';
 
@@ -23,10 +24,11 @@ const TABS = {
   PROJECTS: 'PROJECTS',
   TASKS: 'TASKS',
   METRICS: 'METRICS',
-  CONFIG: 'CONFIG'
+  CONFIG: 'CONFIG',
+  STRIPE_HUB: 'STRIPE_HUB'
 };
 
-type Tab = 'dashboard' | 'leads' | 'deals' | 'clients' | 'payments' | 'sessions' | 'projects' | 'tasks' | 'settings';
+type Tab = 'dashboard' | 'leads' | 'deals' | 'clients' | 'payments' | 'sessions' | 'projects' | 'tasks' | 'settings' | 'stripe_hub';
 
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
@@ -114,7 +116,8 @@ const App: React.FC = () => {
 
       if (sessionsRaw) {
         setSessions(sessionsRaw.map((row: any) => ({
-          id: row[0], participantId: row[1], type: row[2], scheduledAt: row[3],
+          id: row[0], participantId: row[1], leadClientId: row[1],
+          type: row[2], sessionType: row[2], scheduledAt: row[3],
           status: row[4] as any, meetingLink: row[5], recordingLink: row[6],
           transcriptLink: row[7], aiSummary: row[8], aiActionItems: row[9],
           followUpEmailDraft: row[10]
@@ -183,6 +186,7 @@ const App: React.FC = () => {
               { id: 'sessions', icon: Calendar, label: 'Sessions' },
               { id: 'projects', icon: Briefcase, label: 'Projects' },
               { id: 'tasks', icon: CheckSquare, label: 'Operations' },
+              { id: 'stripe_hub', icon: Package, label: 'Stripe Hub' },
             ].map((item, idx) => (
               <button
                 key={item.id}
@@ -251,6 +255,7 @@ const App: React.FC = () => {
               {activeTab === 'payments' && <PaymentsManager payments={payments} clients={clients} />}
               {activeTab === 'sessions' && <SessionsManager sessions={sessions} />}
               {activeTab === TABS.PROJECTS && <ProjectsManager projects={projects} payments={payments} />}
+              {activeTab === 'stripe_hub' && <IntegrationsHub onRefresh={syncAllData} />}
               {activeTab === 'tasks' && <OperationsManager tasks={tasks} />}
               {activeTab === 'settings' && <SettingsManager configs={configs} onRefresh={syncAllData} />}
               {activeTab === 'clients' && <ClientsManager clients={clients} payments={payments} projects={projects} sessions={sessions} />}
