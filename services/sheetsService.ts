@@ -28,40 +28,38 @@ export const fetchSheetData = async (tabName: string) => {
         }
     }
 
-}
+    // --- MERGE LOCAL DATA ---
+    let finalData = [];
 
-// --- MERGE LOCAL DATA ---
-let finalData = [];
+    // Fallback to Direct Google Sheets API (Fallback/Read-only)
+    if (API_KEY) {
+        try {
+            const response = await fetch(
+                `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${tabName}!A2:Z?key=${API_KEY}`
+            );
+            const data = await response.json();
+            finalData = data.values || [];
+        } catch (error) {
+            console.error(`Error fetching sheet ${tabName}:`, error);
+        }
+    }
 
-// Fallback to Direct Google Sheets API (Fallback/Read-only)
-if (API_KEY) {
+    // Overlay Local Overrides
     try {
-        const response = await fetch(
-            `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${tabName}!A2:Z?key=${API_KEY}`
-        );
-        const data = await response.json();
-        finalData = data.values || [];
-    } catch (error) {
-        console.error(`Error fetching sheet ${tabName}:`, error);
+        const localData = JSON.parse(localStorage.getItem(`OS_LOCAL_${tabName}`) || '[]');
+        if (localData.length > 0) {
+            localData.forEach((localRow: any) => {
+                const id = localRow[0];
+                const index = finalData.findIndex((r: any) => r[0] === id);
+                if (index >= 0) finalData[index] = localRow;
+                else finalData.push(localRow);
+            });
+        }
+    } catch (e) {
+        console.error("Local data merge error:", e);
     }
-}
 
-// Overlay Local Overrides
-try {
-    const localData = JSON.parse(localStorage.getItem(`OS_LOCAL_${tabName}`) || '[]');
-    if (localData.length > 0) {
-        localData.forEach((localRow: any) => {
-            const id = localRow[0];
-            const index = finalData.findIndex((r: any) => r[0] === id);
-            if (index >= 0) finalData[index] = localRow;
-            else finalData.push(localRow);
-        });
-    }
-} catch (e) {
-    console.error("Local data merge error:", e);
-}
-
-return finalData.length > 0 ? finalData : null;
+    return finalData.length > 0 ? finalData : null;
 };
 
 /**
