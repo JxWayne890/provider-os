@@ -11,6 +11,7 @@ interface SettingsManagerProps {
 
 const SettingsManager: React.FC<SettingsManagerProps> = ({ configs, onRefresh }) => {
     const [stripeKey, setStripeKey] = useState('');
+    const [googleKey, setGoogleKey] = useState('');
     const [businessName, setBusinessName] = useState('');
     const [isSaving, setIsSaving] = useState(false);
     const [saveStatus, setSaveStatus] = useState<'idle' | 'success' | 'error'>('idle');
@@ -18,8 +19,10 @@ const SettingsManager: React.FC<SettingsManagerProps> = ({ configs, onRefresh })
 
     useEffect(() => {
         const stripeConfig = configs.find(c => c.key === 'stripe_api_key');
+        const googleConfig = configs.find(c => c.key === 'google_api_key');
         const nameConfig = configs.find(c => c.key === 'business_name');
         if (stripeConfig) setStripeKey(stripeConfig.value);
+        if (googleConfig) setGoogleKey(googleConfig.value);
         if (nameConfig) setBusinessName(nameConfig.value);
     }, [configs]);
 
@@ -35,6 +38,14 @@ const SettingsManager: React.FC<SettingsManagerProps> = ({ configs, onRefresh })
                 'Category': 'Integrations'
             });
 
+            // Save Google Key
+            const googleOk = await updateSheetRow('CONFIG', 'google_api_key', {
+                'Setting Key': 'google_api_key',
+                'Value': googleKey,
+                'Description': 'Google Sheets API Key (Read-only access)',
+                'Category': 'System'
+            });
+
             // Save Business Name
             const nameOk = await updateSheetRow('CONFIG', 'business_name', {
                 'Setting Key': 'business_name',
@@ -43,7 +54,7 @@ const SettingsManager: React.FC<SettingsManagerProps> = ({ configs, onRefresh })
                 'Category': 'General'
             });
 
-            if (!stripeOk || !nameOk) {
+            if (!stripeOk || !googleOk || !nameOk) {
                 setErrorMessage('Webhook URL missing or Connection failed');
                 setSaveStatus('error');
                 return;
@@ -167,6 +178,20 @@ const SettingsManager: React.FC<SettingsManagerProps> = ({ configs, onRefresh })
                                         System Access Panel <ExternalLink size={12} />
                                     </a>
                                 </div>
+                            </div>
+
+                            <div className="space-y-3">
+                                <div className="flex justify-between items-center ml-1">
+                                    <label className="text-[10px] font-bold text-[#86868B] uppercase tracking-[0.2em]">Master Sheet API Key</label>
+                                    <span className="text-[10px] text-[#86868B] font-sans">Required for direct sync</span>
+                                </div>
+                                <input
+                                    type="password"
+                                    value={googleKey}
+                                    onChange={(e) => setGoogleKey(e.target.value)}
+                                    placeholder="Enter Google Sheets API Key..."
+                                    className="w-full bg-[#F5F5F7] border border-black/5 rounded-2xl px-5 py-4 text-[#1D1D1F] font-mono text-sm focus:outline-none focus:ring-2 focus:ring-[#B8860B]/10 transition-all shadow-inner"
+                                />
                             </div>
 
                             <div className="space-y-3">

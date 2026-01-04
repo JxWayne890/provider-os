@@ -36,11 +36,15 @@ export const fetchSheetData = async (tabName: string) => {
     }
 
     // 2. Fallback to Direct Google Sheets API (Read-only Public fallback)
-    // Only try if n8n didn't give us anything
-    if (finalData.length === 0 && API_KEY) {
+    // Try environment variable OR local fallback
+    const localConfig = JSON.parse(localStorage.getItem('OS_LOCAL_CONFIG') || '[]');
+    const localGoogleKey = localConfig.find((r: any) => r[0] === 'google_api_key')?.[1];
+    const activeKey = API_KEY || localGoogleKey;
+
+    if (finalData.length === 0 && activeKey) {
         try {
             const response = await fetch(
-                `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${tabName}!A2:Z?key=${API_KEY}`
+                `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${tabName}!A2:Z?key=${activeKey}`
             );
             if (response.ok) {
                 const data = await response.json();
