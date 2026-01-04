@@ -14,6 +14,7 @@ const SettingsManager: React.FC<SettingsManagerProps> = ({ configs, onRefresh })
     const [businessName, setBusinessName] = useState('');
     const [isSaving, setIsSaving] = useState(false);
     const [saveStatus, setSaveStatus] = useState<'idle' | 'success' | 'error'>('idle');
+    const [errorMessage, setErrorMessage] = useState('');
 
     useEffect(() => {
         const stripeConfig = configs.find(c => c.key === 'stripe_api_key');
@@ -27,7 +28,7 @@ const SettingsManager: React.FC<SettingsManagerProps> = ({ configs, onRefresh })
         setSaveStatus('idle');
         try {
             // Save Stripe Key
-            await updateSheetRow('CONFIG', 'stripe_api_key', {
+            const stripeOk = await updateSheetRow('CONFIG', 'stripe_api_key', {
                 'Setting Key': 'stripe_api_key',
                 'Value': stripeKey,
                 'Description': 'Restricted API Key for Stripe data fetching',
@@ -35,19 +36,27 @@ const SettingsManager: React.FC<SettingsManagerProps> = ({ configs, onRefresh })
             });
 
             // Save Business Name
-            await updateSheetRow('CONFIG', 'business_name', {
+            const nameOk = await updateSheetRow('CONFIG', 'business_name', {
                 'Setting Key': 'business_name',
                 'Value': businessName,
                 'Description': 'The name of your business displayed in the UI',
                 'Category': 'General'
             });
 
+            if (!stripeOk || !nameOk) {
+                setErrorMessage('Webhook URL missing or Connection failed');
+                setSaveStatus('error');
+                return;
+            }
+
             setSaveStatus('success');
+            setErrorMessage('');
             onRefresh();
             setTimeout(() => setSaveStatus('idle'), 3000);
         } catch (err) {
             console.error('Failed to save settings:', err);
             setSaveStatus('error');
+            setErrorMessage('Network or Server Error');
         } finally {
             setIsSaving(false);
         }
@@ -76,9 +85,16 @@ const SettingsManager: React.FC<SettingsManagerProps> = ({ configs, onRefresh })
                     ) : (
                         <Save size={20} />
                     )}
-                    {isSaving ? 'Encrypting...' : saveStatus === 'success' ? 'Vault Updated' : 'Save System Changes'}
+                    {isSaving ? 'Encrypting...' : saveStatus === 'success' ? 'Vault Updated' : saveStatus === 'error' ? 'Connection Error' : 'Save System Changes'}
                 </button>
             </div>
+
+            {saveStatus === 'error' && (
+                <div className="bg-red-50 border border-red-200 p-4 rounded-2xl flex items-center gap-3 text-red-600 animate-reveal">
+                    <AlertCircle size={20} />
+                    <span className="text-sm font-bold uppercase tracking-tight">{errorMessage}</span>
+                </div>
+            )}
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
                 {/* Sidebar Nav */}
