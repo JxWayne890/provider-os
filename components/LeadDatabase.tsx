@@ -110,6 +110,8 @@ const LeadDatabase: React.FC = () => {
         {[
           { label: 'Total Leads', value: leads.length.toLocaleString(), color: 'text-[#0B3060]' },
           { label: 'Hot Leads', value: leads.filter(l => l.engagementScore >= 10).length.toLocaleString(), color: 'text-emerald-600' },
+          { label: 'Researched', value: (stats.total - stats.pending).toLocaleString(), color: 'text-blue-600' },
+          { label: 'Hot (9-10)', value: leads.filter(l => l.websiteScore >= 9).length.toLocaleString(), color: 'text-emerald-600' },
           { label: 'Valid Emails', value: leads.filter(l => l.emailValid).length.toLocaleString(), color: 'text-purple-600' },
           { label: 'Avg Engagement', value: (leads.reduce((sum, l) => sum + (l.engagementScore || 0), 0) / (leads.length || 1)).toFixed(1), color: 'text-[#FF9F1C]' },
         ].map(kpi => (
@@ -120,7 +122,79 @@ const LeadDatabase: React.FC = () => {
         ))}
       </div>
 
+      {/* 3. Research Toolbar */}
+      <div className="bg-white border border-[#E2E8F0] rounded-xl px-4 py-3">
+        <div className="flex flex-col md:flex-row items-start md:items-center gap-3">
+          <div className="flex items-center gap-2 flex-wrap flex-1">
+            <select value={researchCampaignId} onChange={e => setResearchCampaignId(e.target.value)}
+              className="text-xs bg-[#F7F8FA] border border-[#E2E8F0] rounded-lg px-3 py-2 outline-none font-medium text-[#1A1A2E]">
+              {campaigns.map(c => (
+                <option key={c.id} value={c.id}>{c.name} ({leads.filter(l => l.campaignId === c.id && l.websiteStatus === 'pending').length} pending)</option>
+              ))}
+            </select>
+            <select value={batchSize} onChange={e => setBatchSize(Number(e.target.value))}
+              className="text-xs bg-[#F7F8FA] border border-[#E2E8F0] rounded-lg px-2 py-2 outline-none font-medium text-[#1A1A2E] w-28">
+              {BATCH_SIZES.map(s => <option key={s} value={s}>{s} per batch</option>)}
+            </select>
+            {!running ? (
+              <button onClick={startResearch} disabled={!researchCampaignId}
+                className="flex items-center gap-1.5 px-3 py-2 bg-[#0B3060] text-white rounded-lg text-xs font-bold hover:bg-[#0a2850] transition-all disabled:opacity-50">
+                <Play size={12} /> Research
+              </button>
+            ) : (
+              <button onClick={research.stopResearch}
+                className="flex items-center gap-1.5 px-3 py-2 bg-amber-500 text-white rounded-lg text-xs font-bold hover:bg-amber-600 transition-all">
+                <Pause size={12} /> Stop
+              </button>
+            )}
+            <button onClick={verifyEmails} disabled={verifying || running || !researchCampaignId}
+              className="flex items-center gap-1.5 px-3 py-2 bg-emerald-600 text-white rounded-lg text-xs font-bold hover:bg-emerald-700 transition-all disabled:opacity-50">
+              {verifying ? <Loader2 size={12} className="animate-spin" /> : <CheckCircle size={12} />}
+              {verifying ? 'Verifying...' : 'Verify Emails'}
+            </button>
+          </div>
+          {leads.some(l => l.emailStatus) && (
+            <div className="flex gap-3 flex-shrink-0">
+              <span className="flex items-center gap-1 text-[10px]"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span><span className="text-emerald-700 font-semibold">{leads.filter(l => l.emailValid).length} valid</span></span>
+              <span className="flex items-center gap-1 text-[10px]"><span className="w-1.5 h-1.5 rounded-full bg-red-500"></span><span className="text-red-600 font-semibold">{leads.filter(l => l.emailStatus && !l.emailValid).length} bad</span></span>
+              <span className="flex items-center gap-1 text-[10px]"><span className="w-1.5 h-1.5 rounded-full bg-gray-300"></span><span className="text-gray-500">{leads.filter(l => !l.emailStatus).length} unchecked</span></span>
+            </div>
+          )}
+        </div>
+        {running && (
+          <div className="mt-2">
+            <div className="w-full bg-gray-100 rounded-full h-2 overflow-hidden">
+              <div className="bg-[#FF9F1C] h-full rounded-full transition-all duration-500 relative" style={{ width: `${Math.max(progress, 1)}%` }}>
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-pulse" />
+              </div>
+            </div>
+            <p className="text-[10px] text-[#94A3B8] mt-1">{stats.pending} remaining · {progress.toFixed(0)}% complete</p>
+          </div>
+        )}
+      </div>
 
+      {/* 4. Score Distribution Cards */}
+      <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
+        {[
+          { range: '10-10', label: 'No Website', count: leads.filter(l => l.websiteScore === 10).length, color: 'bg-emerald-500', desc: 'Biggest opportunity' },
+          { range: '8-9', label: 'Major Issues', count: leads.filter(l => l.websiteScore >= 8 && l.websiteScore <= 9).length, color: 'bg-emerald-400', desc: 'Website broken/down' },
+          { range: '6-7', label: 'Needs Work', count: leads.filter(l => l.websiteScore >= 6 && l.websiteScore <= 7).length, color: 'bg-amber-400', desc: 'Multiple SEO issues' },
+          { range: '4-5', label: 'Decent', count: leads.filter(l => l.websiteScore >= 4 && l.websiteScore <= 5).length, color: 'bg-blue-400', desc: 'Missing city pages' },
+          { range: '1-3', label: 'Good Site', count: leads.filter(l => l.websiteScore >= 1 && l.websiteScore <= 3).length, color: 'bg-gray-400', desc: 'Already optimized' },
+          { range: '0-0', label: 'Pending', count: leads.filter(l => l.websiteScore === 0 && l.websiteStatus === 'pending').length, color: 'bg-gray-200', desc: 'Not researched' },
+        ].map(d => (
+          <button key={d.range}
+            onClick={() => { setScoreFilter(scoreFilter === d.range ? 'all' : d.range); setPage(0); }}
+            className={`p-3 rounded-xl text-left transition-all ${scoreFilter === d.range ? 'ring-2 ring-[#0B3060] bg-[#0B3060]/5' : 'bg-white border border-[#E2E8F0] hover:bg-gray-50'}`}>
+            <div className="flex items-center gap-2">
+              <span className={`w-2.5 h-2.5 rounded-full ${d.color}`}></span>
+              <span className="text-lg font-bold text-[#0B3060]">{d.count}</span>
+            </div>
+            <p className="text-[10px] font-bold text-[#64748B] mt-1">{d.label}</p>
+            <p className="text-[9px] text-[#94A3B8]">{d.desc}</p>
+          </button>
+        ))}
+      </div>
 
       {/* 5. Search + Filters */}
       <div className="flex flex-col md:flex-row gap-3">
@@ -143,6 +217,11 @@ const LeadDatabase: React.FC = () => {
             <option value="all">All Campaigns</option>
             {campaigns.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
+          {scoreFilter !== 'all' && (
+            <button onClick={() => setScoreFilter('all')} className="text-xs px-3 py-2.5 bg-[#0B3060] text-white rounded-lg font-bold flex items-center gap-1">
+              Score: {scoreFilter} <X size={12} />
+            </button>
+          )}
         </div>
       </div>
 
