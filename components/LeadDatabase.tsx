@@ -6,7 +6,7 @@ import ReactDOM from 'react-dom';
 import LeadScoreBar from './LeadScoreBar';
 import { useResearch } from './ResearchContext';
 
-const BATCH_SIZES = [10, 25, 50, 100, 250, 500];
+const BATCH_SIZES = [10, 25, 50, 100, 250, 500, 750, 1000, 1250, 1500];
 const PAGE_SIZE = 50;
 
 const LeadDatabase: React.FC = () => {
