@@ -16,76 +16,71 @@ const OperationsManager: React.FC<OperationsManagerProps> = ({ tasks }) => {
     };
 
     return (
-        <div className="space-y-10 animate-reveal pb-20">
-            <div className="flex justify-between items-end">
+        <div className="space-y-6 animate-reveal pb-20">
+            {/* Header - Mobile Optimized */}
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
                 <div>
-                    <h2 className="text-5xl font-serif font-bold text-[#1A1A2E] tracking-tight">Operations Hub</h2>
-                    <p className="text-[#64748B] mt-2 font-medium tracking-wide uppercase text-xs">Internal task matrix and automated system protocols</p>
+                    <h2 className="text-2xl md:text-4xl font-serif font-bold text-[#1A1A2E] tracking-tight">Operations</h2>
+                    <p className="text-[#64748B] mt-1 font-medium text-xs uppercase tracking-wide">Task management & protocols</p>
                 </div>
-                <button className="flex items-center gap-2 px-8 py-3 luminous-button-gold rounded-2xl text-sm font-bold shadow-lg shadow-[#FF9F1C]/20">
+                <button className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 luminous-button-gold rounded-2xl text-sm font-bold shadow-lg shadow-[#FF9F1C]/20">
                     <Plus size={18} /> New Task
                 </button>
             </div>
 
-            <div className="luminous-card bg-white overflow-hidden">
-                <div className="p-6 border-b border-[#F7F8FA] bg-[#F7F8FA]/30 flex justify-between items-center">
-                    <div className="flex gap-8">
-                        <button className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#FF9F1C] border-b-2 border-[#FF9F1C] pb-1">All Missions</button>
-                        <button className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#64748B] hover:text-[#1A1A2E] transition-colors pb-1">By Projection</button>
-                        <button className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#64748B] hover:text-[#1A1A2E] transition-colors pb-1">My Deck</button>
-                    </div>
-                    <button className="text-[#64748B] hover:text-[#1A1A2E] transition-all p-2 hover:bg-white rounded-xl">
-                        <Filter size={18} />
-                    </button>
-                </div>
+            {/* Filter tabs - horizontal scroll on mobile */}
+            <div className="mobile-scroll-row md:flex md:gap-4 bg-white border border-[#E2E8F0] rounded-2xl p-2">
+                <button className="px-4 py-2.5 text-xs font-bold uppercase tracking-wider text-[#FF9F1C] bg-[#FF9F1C]/10 rounded-xl whitespace-nowrap">All Tasks</button>
+                <button className="px-4 py-2.5 text-xs font-bold uppercase tracking-wider text-[#64748B] hover:text-[#1A1A2E] rounded-xl transition-colors whitespace-nowrap">By Priority</button>
+                <button className="px-4 py-2.5 text-xs font-bold uppercase tracking-wider text-[#64748B] hover:text-[#1A1A2E] rounded-xl transition-colors whitespace-nowrap">My Tasks</button>
+            </div>
 
-                <div className="divide-y divide-[#F7F8FA]">
-                    {tasks.map((task) => (
-                        <div key={task.id} className="p-6 hover:bg-[#F7F8FA]/30 transition-all flex items-center gap-6 group">
-                            <button className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all ${task.status === 'Done' ? 'bg-[#1D9D60] border-[#1D9D60]' : 'border-[#E8E8E8] hover:border-[#FF9F1C]'}`}>
-                                {task.status === 'Done' && <CheckCircle2 size={14} className="text-white" />}
+            {/* Task list */}
+            <div className="space-y-2">
+                {tasks.map((task) => (
+                    <div key={task.id} className="bg-white border border-[#E2E8F0] rounded-2xl p-4 active:bg-[#F7F8FA] transition-all">
+                        <div className="flex items-start gap-3">
+                            <button className={`w-7 h-7 rounded-lg border-2 flex items-center justify-center transition-all flex-shrink-0 mt-0.5 ${task.status === 'Done' ? 'bg-[#1D9D60] border-[#1D9D60]' : 'border-[#E2E8F0] active:border-[#FF9F1C]'}`}>
+                                {task.status === 'Done' && <CheckCircle2 size={16} className="text-white" />}
                             </button>
 
-                            <div className="flex-1">
-                                <p className={`text-sm font-medium ${task.status === 'Done' ? 'text-[#64748B] line-through' : 'text-[#1A1A2E]'}`}>
+                            <div className="flex-1 min-w-0">
+                                <p className={`text-[15px] font-medium leading-snug ${task.status === 'Done' ? 'text-[#94A3B8] line-through' : 'text-[#1A1A2E]'}`}>
                                     {task.description}
                                 </p>
-                                <div className="flex items-center gap-6 mt-3">
-                                    <div className="flex items-center gap-2">
+                                <div className="flex flex-wrap items-center gap-3 mt-2.5">
+                                    <div className="flex items-center gap-1.5">
                                         {task.priority === 'High' && <AlertTriangle size={12} className="text-red-500" />}
                                         {task.priority === 'Medium' && <Briefcase size={12} className="text-[#FF9F1C]" />}
                                         {task.priority === 'Low' && <CheckCircle2 size={12} className="text-[#1D9D60]" />}
-                                        <span className="text-[10px] font-bold uppercase tracking-wider text-[#64748B]">{task.priority} Priority</span>
+                                        <span className="text-[10px] font-bold uppercase tracking-wider text-[#64748B]">{task.priority}</span>
                                     </div>
-                                    <div className="flex items-center gap-2 text-[#64748B]">
-                                        <Milestone size={12} /> {/* Changed from User to Milestone for a more "Luminous" feel, assuming this is part of the redesign */}
-                                        <span className="text-[10px] font-bold uppercase tracking-widest">{task.owner}</span>
-                                    </div>
-                                    <div className="flex items-center gap-2 text-[#64748B]">
-                                        <Clock size={12} />
-                                        <span className="text-[10px] font-bold uppercase tracking-widest">EXP: {task.dueDate}</span>
+                                    <span className="text-[10px] font-bold uppercase tracking-wider text-[#94A3B8]">{task.owner}</span>
+                                    <div className="flex items-center gap-1 text-[#94A3B8]">
+                                        <Clock size={11} />
+                                        <span className="text-[10px] font-bold uppercase tracking-wider">{task.dueDate}</span>
                                     </div>
                                 </div>
-                            </div>
-
-                            <div className="flex items-center gap-3 opacity-0 group-hover:opacity-100 transition-all">
                                 {task.notes && (
-                                    <div className="px-2 py-1 bg-[#F7F8FA] border border-black/5 rounded-lg text-[9px] text-[#FF9F1C] font-bold uppercase tracking-widest">Protocol Attached</div>
+                                    <div className="mt-2 px-2.5 py-1 bg-[#FF9F1C]/5 border border-[#FF9F1C]/10 rounded-lg text-[10px] text-[#FF9F1C] font-bold uppercase tracking-wider inline-block">
+                                        Notes attached
+                                    </div>
                                 )}
-                                <button className="p-2.5 text-[#64748B] hover:text-[#1A1A2E] hover:bg-white rounded-xl transition-all shadow-sm">
-                                    <ChevronRight size={18} /> {/* Changed from MoreHorizontal to ChevronRight, assuming this is part of the redesign */}
-                                </button>
                             </div>
-                        </div>
-                    ))}
 
-                    {tasks.length === 0 && (
-                        <div className="py-32 flex flex-col items-center justify-center text-[#64748B]">
-                            <Layout size={48} className="mb-6 opacity-20" /> {/* Changed from CheckSquare to Layout, assuming this is part of the redesign */}
-                            <p className="font-serif italic text-lg">Operational harmony achieved. All tasks completed.</p>
+                            <button className="w-10 h-10 flex items-center justify-center text-[#CBD5E1] active:text-[#1A1A2E] active:bg-[#F7F8FA] rounded-xl transition-all flex-shrink-0">
+                                <ChevronRight size={20} />
+                            </button>
                         </div>
-                    )}
-                </div>
+                    </div>
+                ))}
+
+                {tasks.length === 0 && (
+                    <div className="py-20 flex flex-col items-center justify-center text-[#64748B]">
+                        <Layout size={48} className="mb-6 opacity-20" />
+                        <p className="font-serif italic text-lg text-center">All tasks completed.</p>
+                    </div>
+                )}
             </div>
         </div>
     );

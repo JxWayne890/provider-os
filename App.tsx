@@ -1,8 +1,10 @@
 
 import React, { useState, useEffect } from 'react';
-import { ResearchProvider } from "./components/ResearchContext";
-import FloatingResearchPill from "./components/FloatingResearchPill";
-import { LayoutDashboard, Users, CreditCard, Calendar, Briefcase, CheckSquare, Settings, Menu, Bell, Search, Database, Target, FileText, Zap, LayoutGrid, ChevronRight, Sparkles, Package, Plus, RefreshCw, Link as LinkIcon, Mail } from 'lucide-react';
+import {
+  LayoutGrid, Users, CreditCard, Calendar, Briefcase, CheckSquare, Settings,
+  Menu, Bell, Search, Database, Target, FileText, Zap, Plus, RefreshCw,
+  Link as LinkIcon, X, ChevronRight, Sparkles, Globe, BarChart3, ArrowRight
+} from 'lucide-react';
 import Dashboard from './components/Dashboard';
 import LeadsManager from './components/LeadsManager';
 import DealsManager from './components/DealsManager';
@@ -17,10 +19,7 @@ import GlobalHyperLinkEngine from './components/GlobalHyperLinkEngine';
 import RelationshipHub from './components/RelationshipHub';
 import ContractsManager from './components/ContractsManager';
 import ContractSigningInterface from './components/ContractSigningInterface';
-import OutreachManager from './components/OutreachManager';
-import LeadDatabase from "./components/LeadDatabase";
-import UnsubscribePage from './components/UnsubscribePage';
-import BookingPage from './components/BookingPage';
+import LeadDatabase from './components/LeadDatabase';
 import {
   fetchLeads, fetchClients, fetchDeals, fetchPayments,
   fetchSessions, fetchProjects, fetchTasks, fetchMetrics,
@@ -30,38 +29,40 @@ import {
 } from './services/dataService';
 import { Lead, Client, Payment, Session, Deal, Project, Task, Metric, ConfigItem, Contract } from './types';
 
-type Tab = 'dashboard' | 'leads_db' | 'crm' | 'deals' | 'payments' | 'payment_links' | 'sessions' | 'projects' | 'tasks' | 'contracts' | 'outreach' | 'settings';
+type Tab = 'dashboard' | 'crm' | 'leads_research' | 'deals' | 'payments' | 'payment_links' | 'sessions' | 'projects' | 'tasks' | 'contracts' | 'settings';
 
-const BrandLogo = () => (
-  <svg viewBox="0 0 500 240" xmlns="http://www.w3.org/2000/svg" className="w-40 animate-reveal">
-    <g transform="translate(250, 120)" textAnchor="middle">
-      <text y="-60" fontSize="70" fill="white" fontStyle="italic" fontFamily="DM Serif Display, serif">The</text>
-      <text y="20" fontSize="95" fill="white" fontWeight="900" fontFamily="DM Serif Display, serif">PROVIDER</text>
-      <text y="95" fontSize="75" fill="#FF9F1C" fontWeight="900" letterSpacing="8" fontFamily="Inter, sans-serif">SYSTEM</text>
-    </g>
-  </svg>
-);
+const NAV_SECTIONS = [
+  {
+    label: 'Core',
+    items: [
+      { id: 'dashboard' as Tab, icon: LayoutGrid, label: 'Dashboard', desc: 'Overview & metrics' },
+      { id: 'crm' as Tab, icon: Users, label: 'Global CRM', desc: 'Leads & clients' },
+      { id: 'leads_research' as Tab, icon: Globe, label: 'Research Lab', desc: 'Website research & scoring' },
+    ]
+  },
+  {
+    label: 'Revenue',
+    items: [
+      { id: 'deals' as Tab, icon: Target, label: 'Deals', desc: 'Proposals & pipeline' },
+      { id: 'payments' as Tab, icon: CreditCard, label: 'Payments', desc: 'Track all payments' },
+      { id: 'payment_links' as Tab, icon: LinkIcon, label: 'Payment Links', desc: 'Stripe checkout links' },
+      { id: 'contracts' as Tab, icon: FileText, label: 'Contracts', desc: 'Digital contracts' },
+    ]
+  },
+  {
+    label: 'Operations',
+    items: [
+      { id: 'sessions' as Tab, icon: Calendar, label: 'Sessions', desc: 'Meetings & calls' },
+      { id: 'projects' as Tab, icon: Briefcase, label: 'Projects', desc: 'Project tracker' },
+      { id: 'tasks' as Tab, icon: CheckSquare, label: 'Operations', desc: 'Task management' },
+    ]
+  },
+];
 
 const App: React.FC = () => {
-  const getTabFromHash = (): Tab => {
-    const hash = window.location.hash.replace('#', '').split('/')[0];
-    const validTabs: Tab[] = ['dashboard', 'leads_db', 'crm', 'deals', 'payments', 'payment_links', 'sessions', 'projects', 'tasks', 'contracts', 'outreach', 'settings'];
-    return validTabs.includes(hash as Tab) ? (hash as Tab) : 'dashboard';
-  };
+  const [activeTab, setActiveTab] = useState<Tab>('dashboard');
 
-  const [activeTab, setActiveTabState] = useState<Tab>(getTabFromHash());
-
-  const setActiveTab = (tab: Tab) => {
-    setActiveTabState(tab);
-    window.location.hash = tab;
-  };
-
-  useEffect(() => {
-    const handleHashChange = () => setActiveTabState(getTabFromHash());
-    window.addEventListener('hashchange', handleHashChange);
-    return () => window.removeEventListener('hashchange', handleHashChange);
-  }, []);
-
+  // Pure Live Data State
   const [leads, setLeads] = useState<Lead[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
   const [deals, setDeals] = useState<Deal[]>([]);
@@ -72,46 +73,78 @@ const App: React.FC = () => {
   const [metrics, setMetrics] = useState<Metric[]>([]);
   const [configs, setConfigs] = useState<ConfigItem[]>([]);
   const [contracts, setContracts] = useState<Contract[]>([]);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+
   const [isLoading, setIsLoading] = useState(false);
+
+  // Mobile Navigation State
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  // Global Action Menu State
   const [isActionMenuOpen, setIsActionMenuOpen] = useState(false);
   const [activeModal, setActiveModal] = useState<'payment_link' | 'invoice' | 'subscription' | null>(null);
 
+  // Global Data Synchronization
   const syncAllData = async () => {
     setIsLoading(true);
     try {
-      const [leadsData, clientsData, dealsData, paymentsData, sessionsData, projectsData, tasksData, metricsData, configsData, contractsData] = await Promise.all([
+      const [
+        leadsData, clientsData, dealsData, paymentsData,
+        sessionsData, projectsData, tasksData, metricsData,
+        configsData, contractsData
+      ] = await Promise.all([
         fetchLeads(), fetchClients(), fetchDeals(), fetchPayments(),
         fetchSessions(), fetchProjects(), fetchTasks(), fetchMetrics(),
         fetchConfigs(), fetchContracts(),
       ]);
-      setLeads(leadsData); setClients(clientsData); setDeals(dealsData); setPayments(paymentsData);
-      setSessions(sessionsData); setProjects(projectsData); setTasks(tasksData); setMetrics(metricsData);
-      setConfigs(configsData); setContracts(contractsData);
+
+      setLeads(leadsData);
+      setClients(clientsData);
+      setDeals(dealsData);
+      setPayments(paymentsData);
+      setSessions(sessionsData);
+      setProjects(projectsData);
+      setTasks(tasksData);
+      setMetrics(metricsData);
+      setConfigs(configsData);
+      setContracts(contractsData);
+
+      // Stripe sync — non-blocking
       try {
         const stripeData = await syncStripeData();
         if (stripeData.clients.length > 0) {
-          setClients(prev => { const existing = new Set(prev.map(c => c.stripeCustomerId).filter(Boolean)); return [...prev, ...stripeData.clients.filter(sc => !existing.has(sc.stripeCustomerId))]; });
+          setClients(prev => {
+            const existing = new Set(prev.map(c => c.stripeCustomerId).filter(Boolean));
+            const newClients = stripeData.clients.filter(sc => !existing.has(sc.stripeCustomerId));
+            return [...prev, ...newClients];
+          });
         }
         if (stripeData.payments.length > 0) {
-          setPayments(prev => { const existing = new Set(prev.map(p => p.stripeId).filter(Boolean)); return [...prev, ...stripeData.payments.filter(sp => !existing.has(sp.stripeId))]; });
+          setPayments(prev => {
+            const existing = new Set(prev.map(p => p.stripeId).filter(Boolean));
+            const newPayments = stripeData.payments.filter(sp => !existing.has(sp.stripeId));
+            return [...prev, ...newPayments];
+          });
         }
-      } catch (stripeErr) { console.warn('Stripe sync skipped:', stripeErr); }
-    } catch (err) { console.error("Critical Sync Failure:", err); } finally { setIsLoading(false); }
+      } catch (stripeErr) {
+        console.warn('Stripe sync skipped:', stripeErr);
+      }
+    } catch (err) {
+      console.error("Critical Sync Failure:", err);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  useEffect(() => { syncAllData(); }, []);
+  useEffect(() => {
+    syncAllData();
+  }, []);
 
+  // Check for Signing Mode
   const urlParams = new URLSearchParams(window.location.search);
-  const pageMode = urlParams.get('mode');
+  const signingMode = urlParams.get('mode') === 'sign';
   const signingContractId = urlParams.get('id');
-
-  if (pageMode === 'unsubscribe') {
-    return <UnsubscribePage campaignLeadId={urlParams.get('id') || ''} email={urlParams.get('email') || ''} />;
-  }
-  if (pageMode === 'book') {
-    return <BookingPage campaignLeadId={urlParams.get('ref') || undefined} />;
-  }
 
   const updateLead = async (updatedLead: Lead) => {
     setLeads(prev => prev.map(l => l.id === updatedLead.id ? updatedLead : l));
@@ -120,143 +153,317 @@ const App: React.FC = () => {
 
   const updateContract = async (updatedContract: Contract) => {
     const exists = contracts.find(c => c.id === updatedContract.id);
-    if (exists) { setContracts(prev => prev.map(c => c.id === updatedContract.id ? updatedContract : c)); }
-    else { setContracts(prev => [...prev, updatedContract]); }
+    if (exists) {
+      setContracts(prev => prev.map(c => c.id === updatedContract.id ? updatedContract : c));
+    } else {
+      setContracts(prev => [...prev, updatedContract]);
+    }
     await upsertContract(updatedContract);
   };
 
-  if (pageMode === 'sign' && signingContractId) {
+  // Close drawer when navigating
+  const navigateTo = (tab: Tab) => {
+    setActiveTab(tab);
+    setIsDrawerOpen(false);
+    setIsSearchOpen(false);
+  };
+
+  if (signingMode && signingContractId) {
     const contractToSign = contracts.find(c => c.id === signingContractId);
-    if (isLoading && !contractToSign) return <div className="flex h-screen items-center justify-center bg-[#F7F8FA]"><div className="w-10 h-10 border-4 border-[#0B3060] border-t-transparent rounded-full animate-spin"></div></div>;
+    if (isLoading && !contractToSign) {
+      return <div className="flex h-screen items-center justify-center">Loading Contract...</div>;
+    }
     if (contractToSign) {
-      return <ContractSigningInterface contract={contractToSign} onSign={async (signatureData) => { await updateContract({ ...contractToSign, status: 'Signed', signedAt: new Date().toISOString(), signatureData }); }} />;
+      return (
+        <ContractSigningInterface
+          contract={contractToSign}
+          onSign={async (signatureData) => {
+            const signedContract = {
+              ...contractToSign,
+              status: 'Signed' as const,
+              signedAt: new Date().toISOString(),
+              signatureData
+            };
+            await updateContract(signedContract);
+          }}
+        />
+      );
     }
   }
 
+  // Get current tab label for mobile header
+  const currentTabLabel = NAV_SECTIONS.flatMap(s => s.items).find(i => i.id === activeTab)?.label
+    || (activeTab === 'settings' ? 'Settings' : 'ProviderOS');
+
   return (
-    <ResearchProvider>
     <div className="flex h-screen bg-[#F7F8FA] text-[#1A1A2E] overflow-hidden font-sans">
-      {/* Navy Sidebar (Desktop) */}
-      <aside className="w-64 bg-[#0B3060] hidden lg:flex flex-col z-20 overflow-y-auto">
-        <div className="p-6 pb-4">
-          <BrandLogo />
-        </div>
 
-        <nav className="flex-1 px-3 space-y-0.5">
-          {[
-            { id: 'dashboard', icon: LayoutGrid, label: 'Dashboard' },
-            { id: 'leads_db', icon: Database, label: 'Leads' },
-            { id: 'crm', icon: Users, label: 'Global CRM' },
-            { id: 'deals', icon: FileText, label: 'Deals' },
-            { id: 'payments', icon: CreditCard, label: 'Payments' },
-            { id: 'payment_links', icon: LinkIcon, label: 'Payment Links' },
-            { id: 'sessions', icon: Calendar, label: 'Sessions' },
-            { id: 'projects', icon: Briefcase, label: 'Projects' },
-            { id: 'outreach', icon: Mail, label: 'Outreach' },
-            { id: 'tasks', icon: CheckSquare, label: 'Operations' },
-            { id: 'contracts', icon: FileText, label: 'Contracts' },
-          ].map((item, idx) => (
-            <button
-              key={item.id}
-              onClick={() => setActiveTab(item.id as Tab)}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
-                activeTab === item.id
-                  ? 'bg-white/15 text-white border-l-[3px] border-[#FF9F1C] pl-[9px]'
-                  : 'text-white/60 hover:bg-white/8 hover:text-white/90'
-              }`}
-            >
-              <item.icon size={18} strokeWidth={activeTab === item.id ? 2.5 : 1.8} />
-              {item.label}
-            </button>
-          ))}
-        </nav>
-
-        <div className="p-3 mt-auto border-t border-white/10">
-          <button
-            onClick={() => setActiveTab('settings')}
-            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
-              activeTab === 'settings'
-                ? 'bg-white/15 text-white border-l-[3px] border-[#FF9F1C] pl-[9px]'
-                : 'text-white/60 hover:bg-white/8 hover:text-white/90'
-            }`}
-          >
-            <Settings size={18} strokeWidth={1.8} />
-            Settings
-          </button>
-        </div>
-      </aside>
-
-      {/* Main Content */}
-      <main className="flex-1 overflow-y-auto relative h-screen">
-        {/* Top Header */}
-        <header className="sticky top-0 z-10 px-4 lg:px-8 py-3 lg:py-4 bg-white/90 backdrop-blur-md border-b border-[#E2E8F0] flex items-center justify-between">
-          <div className="flex items-center gap-3 bg-[#F7F8FA] px-4 py-2 rounded-xl border border-[#E2E8F0] w-full lg:w-96 focus-within:ring-2 focus-within:ring-[#0B3060]/10 transition-all">
-            <Search className="text-[#64748B]" size={16} />
-            <input
-              type="text"
-              placeholder="Search..."
-              className="bg-transparent border-none outline-none text-sm font-medium w-full text-[#1A1A2E] placeholder-[#94A3B8]"
-            />
+      {/* ============================================ */}
+      {/* DESKTOP SIDEBAR (hidden on mobile)          */}
+      {/* ============================================ */}
+      <aside className="w-72 luminous-sidebar hidden lg:flex flex-col z-20 overflow-y-auto">
+        <div className="p-8">
+          <div className="flex items-center gap-3 mb-10">
+            <div className="w-10 h-10 bg-[#FF9F1C] rounded-xl flex items-center justify-center shadow-lg shadow-[#FF9F1C]/20 animate-reveal">
+              <span className="text-white font-serif text-2xl font-bold">P</span>
+            </div>
+            <h1 className="text-2xl font-serif font-bold tracking-tight text-white animate-reveal" style={{ animationDelay: '0.1s' }}>
+              ProviderOS
+            </h1>
           </div>
 
-          <div className="hidden lg:flex items-center gap-3">
-            <div className="relative">
-              <button
-                onClick={() => setIsActionMenuOpen(!isActionMenuOpen)}
-                className="w-9 h-9 bg-[#0B3060] text-white rounded-lg flex items-center justify-center hover:bg-[#0a2850] transition-all active:scale-95"
-              >
-                <Plus size={18} />
-              </button>
-              {isActionMenuOpen && (
-                <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-lg border border-[#E2E8F0] p-1.5 z-50">
-                  <div className="text-[10px] font-bold text-[#94A3B8] uppercase tracking-widest px-3 py-2">Create New</div>
-                  {[
-                    { label: 'Payment Link', icon: Zap, color: 'text-blue-500', modal: 'payment_link' as const },
-                    { label: 'Invoice', icon: FileText, color: 'text-emerald-500', modal: 'invoice' as const },
-                    { label: 'Subscription', icon: RefreshCw, color: 'text-[#FF9F1C]', modal: 'subscription' as const },
-                  ].map(item => (
+          <nav className="space-y-6">
+            {NAV_SECTIONS.map((section) => (
+              <div key={section.label}>
+                <p className="text-[10px] font-bold text-white/30 uppercase tracking-[0.2em] mb-2 px-4">{section.label}</p>
+                <div className="space-y-1">
+                  {section.items.map((item) => (
                     <button
-                      key={item.label}
-                      onClick={() => { setActiveModal(item.modal); setIsActionMenuOpen(false); }}
-                      className="w-full text-left px-3 py-2.5 text-sm font-medium text-[#1A1A2E] hover:bg-[#F7F8FA] rounded-lg flex items-center gap-3 transition-all"
+                      key={item.id}
+                      onClick={() => setActiveTab(item.id)}
+                      className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${activeTab === item.id
+                        ? 'bg-white/15 text-white shadow-md'
+                        : 'text-white/50 hover:bg-white/5 hover:text-white/80'
+                      }`}
                     >
-                      <item.icon size={15} className={item.color} />
+                      <item.icon size={18} strokeWidth={2} />
                       {item.label}
                     </button>
                   ))}
                 </div>
-              )}
+              </div>
+            ))}
+          </nav>
+        </div>
+
+        <div className="mt-auto p-8">
+          <button
+            onClick={() => setActiveTab('settings')}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${activeTab === 'settings'
+              ? 'bg-white/15 text-white shadow-md'
+              : 'text-white/50 hover:bg-white/5 hover:text-white/80'
+            }`}
+          >
+            <Settings size={18} strokeWidth={2} />
+            Config Hub
+          </button>
+        </div>
+      </aside>
+
+      {/* ============================================ */}
+      {/* MOBILE NAVIGATION DRAWER (overlay)          */}
+      {/* ============================================ */}
+      {isDrawerOpen && (
+        <div className="fixed inset-0 z-[70] lg:hidden">
+          {/* Backdrop */}
+          <div
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+            onClick={() => setIsDrawerOpen(false)}
+          />
+          {/* Drawer */}
+          <div className="absolute inset-y-0 left-0 w-[85%] max-w-[340px] bg-[#0B3060] flex flex-col mobile-drawer-enter overflow-y-auto">
+            {/* Drawer Header */}
+            <div className="p-6 pb-4 flex items-center justify-between border-b border-white/10">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-[#FF9F1C] rounded-xl flex items-center justify-center shadow-lg">
+                  <span className="text-white font-serif text-xl font-bold">P</span>
+                </div>
+                <h1 className="text-xl font-serif font-bold text-white">ProviderOS</h1>
+              </div>
+              <button
+                onClick={() => setIsDrawerOpen(false)}
+                className="w-10 h-10 flex items-center justify-center rounded-xl bg-white/10 text-white active:bg-white/20"
+              >
+                <X size={20} />
+              </button>
             </div>
 
-            <button className="p-2 text-[#64748B] hover:text-[#1A1A2E] hover:bg-[#F7F8FA] rounded-lg transition-all relative">
-              <Bell size={18} />
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-[#FF9F1C] rounded-full ring-2 ring-white"></span>
-            </button>
+            {/* Drawer Navigation */}
+            <nav className="flex-1 p-4 space-y-6 overflow-y-auto">
+              {NAV_SECTIONS.map((section) => (
+                <div key={section.label}>
+                  <p className="text-[10px] font-bold text-white/30 uppercase tracking-[0.2em] mb-3 px-3">{section.label}</p>
+                  <div className="space-y-1">
+                    {section.items.map((item) => (
+                      <button
+                        key={item.id}
+                        onClick={() => navigateTo(item.id)}
+                        className={`w-full flex items-center gap-4 px-4 py-4 rounded-2xl text-left transition-all active:scale-[0.98] ${activeTab === item.id
+                          ? 'bg-[#FF9F1C] text-white shadow-lg shadow-[#FF9F1C]/20'
+                          : 'text-white/70 hover:bg-white/5 active:bg-white/10'
+                        }`}
+                      >
+                        <div className={`w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 ${activeTab === item.id ? 'bg-white/20' : 'bg-white/10'
+                          }`}>
+                          <item.icon size={20} strokeWidth={2} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[15px] font-bold">{item.label}</p>
+                          <p className={`text-[11px] mt-0.5 ${activeTab === item.id ? 'text-white/70' : 'text-white/40'}`}>{item.desc}</p>
+                        </div>
+                        <ChevronRight size={16} className={activeTab === item.id ? 'text-white/60' : 'text-white/20'} />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </nav>
 
-            <div className="w-9 h-9 rounded-full bg-[#0B3060] flex items-center justify-center text-white font-bold text-xs">
-              JW
+            {/* Drawer Footer */}
+            <div className="p-4 border-t border-white/10">
+              <button
+                onClick={() => navigateTo('settings')}
+                className={`w-full flex items-center gap-4 px-4 py-4 rounded-2xl transition-all active:scale-[0.98] ${activeTab === 'settings'
+                  ? 'bg-[#FF9F1C] text-white shadow-lg'
+                  : 'text-white/70 hover:bg-white/5'
+                }`}
+              >
+                <div className={`w-11 h-11 rounded-xl flex items-center justify-center ${activeTab === 'settings' ? 'bg-white/20' : 'bg-white/10'}`}>
+                  <Settings size={20} strokeWidth={2} />
+                </div>
+                <div>
+                  <p className="text-[15px] font-bold">Settings</p>
+                  <p className={`text-[11px] ${activeTab === 'settings' ? 'text-white/70' : 'text-white/40'}`}>Configuration hub</p>
+                </div>
+              </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* ============================================ */}
+      {/* MAIN CONTENT AREA                           */}
+      {/* ============================================ */}
+      <main className="flex-1 overflow-y-auto bg-transparent relative h-screen">
+
+        {/* Mobile Header */}
+        <header className="sticky top-0 z-10 bg-white/95 backdrop-blur-md border-b border-[#E2E8F0]">
+          {/* Primary header row */}
+          <div className="px-4 lg:px-8 py-3 lg:py-5 flex items-center justify-between gap-3">
+            {/* Left: Hamburger (mobile) + Page title */}
+            <div className="flex items-center gap-3 min-w-0">
+              <button
+                onClick={() => setIsDrawerOpen(true)}
+                className="lg:hidden w-11 h-11 flex items-center justify-center rounded-xl bg-[#0B3060] text-white active:scale-95 transition-transform flex-shrink-0"
+              >
+                <Menu size={20} />
+              </button>
+              <div className="min-w-0">
+                <h2 className="text-lg lg:text-xl font-serif font-bold text-[#0B3060] truncate">{currentTabLabel}</h2>
+                <p className="text-[10px] text-[#94A3B8] font-medium uppercase tracking-wider hidden sm:block">ProviderOS</p>
+              </div>
+            </div>
+
+            {/* Center: Search (desktop) */}
+            <div className="hidden lg:flex items-center gap-4 bg-[#F7F8FA] px-4 py-2.5 rounded-xl border border-[#E2E8F0] w-96 focus-within:ring-2 focus-within:ring-[#0B3060]/10 transition-all">
+              <Search className="text-[#94A3B8]" size={18} />
+              <input
+                type="text"
+                placeholder="Search master data..."
+                className="bg-transparent border-none outline-none text-sm font-medium w-full text-[#1A1A2E] placeholder-[#94A3B8]"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
+
+            {/* Right: Actions */}
+            <div className="flex items-center gap-2 flex-shrink-0">
+              {/* Mobile search toggle */}
+              <button
+                onClick={() => setIsSearchOpen(!isSearchOpen)}
+                className="lg:hidden w-11 h-11 flex items-center justify-center rounded-xl bg-[#F7F8FA] text-[#64748B] active:bg-[#E2E8F0] transition-all"
+              >
+                <Search size={20} />
+              </button>
+
+              {/* Quick create */}
+              <div className="relative">
+                <button
+                  onClick={() => setIsActionMenuOpen(!isActionMenuOpen)}
+                  className="w-11 h-11 bg-[#0B3060] text-white rounded-xl flex items-center justify-center active:scale-95 transition-all shadow-lg shadow-[#0B3060]/20"
+                >
+                  <Plus size={20} />
+                </button>
+
+                {/* Desktop action dropdown */}
+                {isActionMenuOpen && (
+                  <div className="hidden lg:block absolute right-0 mt-3 w-64 bg-white rounded-xl shadow-xl border border-[#E2E8F0] p-2 z-50 animate-in fade-in slide-in-from-top-2 duration-200">
+                    <div className="text-[10px] font-bold text-[#94A3B8] uppercase tracking-widest p-3 border-b border-[#F7F8FA] mb-1">Create New...</div>
+                    <button onClick={() => { setActiveModal('payment_link'); setIsActionMenuOpen(false); }}
+                      className="w-full text-left px-4 py-3 text-sm font-semibold text-[#1A1A2E] hover:bg-[#F7F8FA] rounded-lg flex items-center gap-3 transition-all">
+                      <Zap size={16} className="text-blue-600" /> Payment Link
+                    </button>
+                    <button onClick={() => { setActiveModal('invoice'); setIsActionMenuOpen(false); }}
+                      className="w-full text-left px-4 py-3 text-sm font-semibold text-[#1A1A2E] hover:bg-[#F7F8FA] rounded-lg flex items-center gap-3 transition-all">
+                      <FileText size={16} className="text-emerald-600" /> Invoice
+                    </button>
+                    <button onClick={() => { setActiveModal('subscription'); setIsActionMenuOpen(false); }}
+                      className="w-full text-left px-4 py-3 text-sm font-semibold text-[#1A1A2E] hover:bg-[#F7F8FA] rounded-lg flex items-center gap-3 transition-all">
+                      <RefreshCw size={16} className="text-amber-600" /> Subscription
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Notifications */}
+              <button className="w-11 h-11 flex items-center justify-center rounded-xl bg-[#F7F8FA] text-[#64748B] active:bg-[#E2E8F0] transition-all relative">
+                <Bell size={20} />
+                <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-red-500 rounded-full ring-2 ring-white"></span>
+              </button>
+
+              {/* Avatar (desktop) */}
+              <div className="hidden lg:flex w-10 h-10 rounded-full bg-[#0B3060] items-center justify-center text-white font-bold text-sm">
+                JW
+              </div>
+            </div>
+          </div>
+
+          {/* Mobile search bar (expandable) */}
+          {isSearchOpen && (
+            <div className="lg:hidden px-4 pb-3 animate-in fade-in slide-in-from-top-1 duration-200">
+              <div className="flex items-center gap-3 bg-[#F7F8FA] px-4 py-3 rounded-2xl border border-[#E2E8F0] focus-within:ring-2 focus-within:ring-[#0B3060]/10">
+                <Search className="text-[#94A3B8] flex-shrink-0" size={18} />
+                <input
+                  type="text"
+                  placeholder="Search leads, clients, payments..."
+                  className="bg-transparent border-none outline-none text-[15px] font-medium w-full text-[#1A1A2E] placeholder-[#94A3B8]"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  autoFocus
+                />
+                {searchQuery && (
+                  <button onClick={() => setSearchQuery('')} className="p-1">
+                    <X size={16} className="text-[#94A3B8]" />
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
         </header>
 
-        <div className="p-4 lg:p-8 max-w-7xl mx-auto pb-32 lg:pb-8">
-          {/* Tabs that manage their own data load immediately */}
-          {activeTab === 'outreach' && <OutreachManager />}
-          {activeTab === 'leads_db' && <LeadDatabase />}
-          {activeTab === 'payment_links' && <PaymentLinksManager />}
-
-          {/* Tabs that need global data wait for sync */}
-          {activeTab !== 'outreach' && activeTab !== 'payment_links' && activeTab !== 'leads_db' && (
-          isLoading && leads.length === 0 ? (
+        {/* Content Area */}
+        <div className="p-4 lg:p-8 max-w-7xl mx-auto pb-28 lg:pb-8">
+          {isLoading && leads.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-40 animate-reveal">
-              <div className="w-12 h-12 border-4 border-[#0B3060] border-t-transparent rounded-full animate-spin mb-4"></div>
-              <p className="text-[#64748B] font-serif italic text-lg">Synchronizing Data...</p>
+              <div className="w-14 h-14 border-4 border-[#FF9F1C] border-t-transparent rounded-full animate-spin mb-4"></div>
+              <p className="text-[#94A3B8] font-serif italic text-lg">Synchronizing Data...</p>
             </div>
           ) : (
             <>
               {activeTab === 'dashboard' && <Dashboard leads={leads} clients={clients} payments={payments} metrics={metrics} configs={configs} onConnectStripe={() => setActiveTab('settings')} />}
-              {activeTab === 'crm' && <RelationshipHub leads={leads} clients={clients} payments={payments} projects={projects} sessions={sessions} onUpdateLead={updateLead} onRequestLink={() => setActiveModal('payment_link')} />}
-              {activeTab === 'deals' && <DealsManager deals={deals} onUpdateDeal={() => {}} />}
+              {activeTab === 'crm' && (
+                <RelationshipHub
+                  leads={leads}
+                  clients={clients}
+                  payments={payments}
+                  projects={projects}
+                  sessions={sessions}
+                  onUpdateLead={updateLead}
+                  onRequestLink={(lead) => { setActiveModal('payment_link'); }}
+                />
+              )}
+              {activeTab === 'leads_research' && <LeadDatabase />}
+              {activeTab === 'deals' && <DealsManager deals={deals} onUpdateDeal={() => { }} />}
               {activeTab === 'payments' && <PaymentsManager payments={payments} clients={clients} />}
               {activeTab === 'payment_links' && <PaymentLinksManager />}
               {activeTab === 'sessions' && <SessionsManager sessions={sessions} />}
@@ -265,74 +472,150 @@ const App: React.FC = () => {
               {activeTab === 'contracts' && <ContractsManager contracts={contracts} clients={clients} onUpdateContract={updateContract} />}
               {activeTab === 'settings' && <SettingsManager configs={configs} onRefresh={syncAllData} />}
             </>
-          )
           )}
         </div>
       </main>
 
-      {/* Mobile Bottom Nav */}
-      <nav className="fixed bottom-0 left-0 right-0 lg:hidden bottom-nav z-50 flex items-center justify-between px-6 py-3">
-        {[
-          { id: 'dashboard' as Tab, icon: LayoutGrid },
-          { id: 'crm' as Tab, icon: Users },
-        ].map(item => (
-          <button key={item.id} onClick={() => setActiveTab(item.id)} className={`flex flex-col items-center gap-1 ${activeTab === item.id ? 'text-[#0B3060]' : 'text-[#94A3B8]'}`}>
-            <item.icon size={22} strokeWidth={activeTab === item.id ? 2.5 : 2} />
+      {/* ============================================ */}
+      {/* MOBILE BOTTOM NAV                           */}
+      {/* ============================================ */}
+      <nav className="fixed bottom-0 left-0 right-0 lg:hidden mobile-bottom-nav z-50">
+        <div className="flex items-stretch justify-around px-2">
+          {/* Dashboard */}
+          <button
+            onClick={() => setActiveTab('dashboard')}
+            className={`mobile-nav-btn flex flex-col items-center justify-center gap-1 py-3 px-3 flex-1 transition-all ${activeTab === 'dashboard' ? 'mobile-nav-active' : ''}`}
+          >
+            <LayoutGrid size={22} strokeWidth={activeTab === 'dashboard' ? 2.5 : 1.8} />
+            <span className="text-[10px] font-bold">Home</span>
           </button>
-        ))}
-        <button
-          onClick={() => setIsActionMenuOpen(true)}
-          className="w-12 h-12 bg-[#0B3060] text-white rounded-full flex items-center justify-center shadow-lg active:scale-95 transition-transform -mt-6 ring-4 ring-white"
-        >
-          <Plus size={24} />
-        </button>
-        {[
-          { id: 'outreach' as Tab, icon: Mail },
-          { id: 'settings' as Tab, icon: Settings },
-        ].map(item => (
-          <button key={item.id} onClick={() => setActiveTab(item.id)} className={`flex flex-col items-center gap-1 ${activeTab === item.id ? 'text-[#0B3060]' : 'text-[#94A3B8]'}`}>
-            <item.icon size={22} strokeWidth={activeTab === item.id ? 2.5 : 2} />
+
+          {/* Research Lab */}
+          <button
+            onClick={() => setActiveTab('leads_research')}
+            className={`mobile-nav-btn flex flex-col items-center justify-center gap-1 py-3 px-3 flex-1 transition-all ${activeTab === 'leads_research' ? 'mobile-nav-active' : ''}`}
+          >
+            <Globe size={22} strokeWidth={activeTab === 'leads_research' ? 2.5 : 1.8} />
+            <span className="text-[10px] font-bold">Research</span>
           </button>
-        ))}
+
+          {/* Central Action Hub */}
+          <button
+            onClick={() => setIsActionMenuOpen(true)}
+            className="flex items-center justify-center -mt-5 mx-1"
+          >
+            <div className="w-14 h-14 bg-[#FF9F1C] text-white rounded-2xl flex items-center justify-center shadow-lg shadow-[#FF9F1C]/30 active:scale-90 transition-transform ring-4 ring-[#F7F8FA]">
+              <Plus size={26} strokeWidth={2.5} />
+            </div>
+          </button>
+
+          {/* CRM */}
+          <button
+            onClick={() => setActiveTab('crm')}
+            className={`mobile-nav-btn flex flex-col items-center justify-center gap-1 py-3 px-3 flex-1 transition-all ${activeTab === 'crm' ? 'mobile-nav-active' : ''}`}
+          >
+            <Users size={22} strokeWidth={activeTab === 'crm' ? 2.5 : 1.8} />
+            <span className="text-[10px] font-bold">CRM</span>
+          </button>
+
+          {/* More Menu */}
+          <button
+            onClick={() => setIsDrawerOpen(true)}
+            className={`mobile-nav-btn flex flex-col items-center justify-center gap-1 py-3 px-3 flex-1 transition-all ${['deals', 'payments', 'payment_links', 'sessions', 'projects', 'tasks', 'contracts', 'settings'].includes(activeTab) ? 'mobile-nav-active' : ''}`}
+          >
+            <Menu size={22} strokeWidth={1.8} />
+            <span className="text-[10px] font-bold">More</span>
+          </button>
+        </div>
       </nav>
 
-      {/* Mobile Action Sheet */}
+      {/* ============================================ */}
+      {/* MOBILE ACTION SHEET (Create New)            */}
+      {/* ============================================ */}
       {isActionMenuOpen && (
         <div className="fixed inset-0 z-[60] lg:hidden bg-black/40 backdrop-blur-sm flex items-end justify-center" onClick={() => setIsActionMenuOpen(false)}>
-          <div className="bg-white w-full rounded-t-[28px] p-6 pb-12" onClick={e => e.stopPropagation()}>
-            <div className="w-10 h-1 bg-[#E2E8F0] rounded-full mx-auto mb-6"></div>
-            <h3 className="text-lg font-serif font-bold text-[#1A1A2E] mb-5">Create New</h3>
-            <div className="space-y-2">
-              {[
-                { label: 'Payment Link', desc: 'Secure checkout', icon: Zap, color: 'text-blue-500', bg: 'bg-blue-50', modal: 'payment_link' as const },
-                { label: 'Invoice', desc: 'Bill a client', icon: FileText, color: 'text-emerald-500', bg: 'bg-emerald-50', modal: 'invoice' as const },
-                { label: 'Subscription', desc: 'Recurring revenue', icon: RefreshCw, color: 'text-[#FF9F1C]', bg: 'bg-orange-50', modal: 'subscription' as const },
-              ].map(item => (
-                <button
-                  key={item.label}
-                  onClick={() => { setActiveModal(item.modal); setIsActionMenuOpen(false); }}
-                  className="w-full p-4 bg-white border border-[#E2E8F0] rounded-2xl flex items-center gap-4 active:bg-[#F7F8FA] transition-all"
-                >
-                  <div className={`w-11 h-11 ${item.bg} ${item.color} rounded-xl flex items-center justify-center`}>
-                    <item.icon size={20} />
-                  </div>
-                  <div className="text-left">
-                    <p className="text-sm font-bold text-[#1A1A2E]">{item.label}</p>
-                    <p className="text-xs text-[#94A3B8]">{item.desc}</p>
-                  </div>
-                </button>
-              ))}
+          <div className="bg-white w-full rounded-t-[28px] p-5 pb-safe mobile-sheet-enter" onClick={(e) => e.stopPropagation()}>
+            <div className="w-10 h-1.5 bg-[#E2E8F0] rounded-full mx-auto mb-6"></div>
+
+            <h3 className="text-xl font-serif font-bold text-[#0B3060] mb-5 px-1">Create New</h3>
+
+            <div className="space-y-3">
+              <button
+                onClick={() => { setActiveModal('payment_link'); setIsActionMenuOpen(false); }}
+                className="w-full p-4 bg-white border border-[#E2E8F0] rounded-2xl flex items-center gap-4 active:bg-[#F7F8FA] active:scale-[0.98] transition-all shadow-sm"
+              >
+                <div className="w-14 h-14 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center border border-blue-100 flex-shrink-0">
+                  <Zap size={24} />
+                </div>
+                <div className="text-left flex-1">
+                  <p className="text-[15px] font-bold text-[#1A1A2E]">Payment Link</p>
+                  <p className="text-xs text-[#94A3B8]">Secure checkout for any product</p>
+                </div>
+                <ArrowRight size={18} className="text-[#CBD5E1]" />
+              </button>
+              <button
+                onClick={() => { setActiveModal('invoice'); setIsActionMenuOpen(false); }}
+                className="w-full p-4 bg-white border border-[#E2E8F0] rounded-2xl flex items-center gap-4 active:bg-[#F7F8FA] active:scale-[0.98] transition-all shadow-sm"
+              >
+                <div className="w-14 h-14 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center border border-emerald-100 flex-shrink-0">
+                  <FileText size={24} />
+                </div>
+                <div className="text-left flex-1">
+                  <p className="text-[15px] font-bold text-[#1A1A2E]">Invoice</p>
+                  <p className="text-xs text-[#94A3B8]">Bill a client directly</p>
+                </div>
+                <ArrowRight size={18} className="text-[#CBD5E1]" />
+              </button>
+              <button
+                onClick={() => { setActiveModal('subscription'); setIsActionMenuOpen(false); }}
+                className="w-full p-4 bg-white border border-[#E2E8F0] rounded-2xl flex items-center gap-4 active:bg-[#F7F8FA] active:scale-[0.98] transition-all shadow-sm"
+              >
+                <div className="w-14 h-14 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center border border-amber-100 flex-shrink-0">
+                  <RefreshCw size={24} />
+                </div>
+                <div className="text-left flex-1">
+                  <p className="text-[15px] font-bold text-[#1A1A2E]">Subscription</p>
+                  <p className="text-xs text-[#94A3B8]">Recurring revenue engine</p>
+                </div>
+                <ArrowRight size={18} className="text-[#CBD5E1]" />
+              </button>
             </div>
-            <button onClick={() => setIsActionMenuOpen(false)} className="w-full mt-4 py-3 rounded-xl font-semibold text-[#94A3B8] hover:text-[#1A1A2E] transition-all">
+
+            {/* Quick navigate to research */}
+            <div className="mt-4 pt-4 border-t border-[#E2E8F0]">
+              <button
+                onClick={() => { navigateTo('leads_research'); setIsActionMenuOpen(false); }}
+                className="w-full p-4 bg-[#0B3060] rounded-2xl flex items-center gap-4 active:bg-[#0a2850] active:scale-[0.98] transition-all"
+              >
+                <div className="w-14 h-14 bg-white/10 text-white rounded-2xl flex items-center justify-center flex-shrink-0">
+                  <Globe size={24} />
+                </div>
+                <div className="text-left flex-1">
+                  <p className="text-[15px] font-bold text-white">Research Leads</p>
+                  <p className="text-xs text-white/60">Analyze websites & score leads</p>
+                </div>
+                <ArrowRight size={18} className="text-white/40" />
+              </button>
+            </div>
+
+            <button
+              onClick={() => setIsActionMenuOpen(false)}
+              className="w-full mt-4 py-4 rounded-2xl font-bold text-[#94A3B8] active:text-[#1A1A2E] active:bg-[#F7F8FA] transition-all text-[15px]"
+            >
               Cancel
             </button>
           </div>
         </div>
       )}
 
-      <GlobalHyperLinkEngine isOpen={activeModal === 'payment_link'} onClose={() => setActiveModal(null)} leads={leads} clients={clients} />
+      {/* Global Quick Action Modals */}
+      <GlobalHyperLinkEngine
+        isOpen={activeModal === 'payment_link'}
+        onClose={() => setActiveModal(null)}
+        leads={leads}
+        clients={clients}
+      />
     </div>
-    </ResearchProvider>
   );
 };
 
