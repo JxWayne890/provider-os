@@ -419,6 +419,70 @@ const LeadDatabase: React.FC = () => {
                     </div>
                   </div>
 
+                  {/* Assessment */}
+                  {a.overallAssessment && (
+                    <div className="p-4 bg-[#FF9F1C]/5 border border-[#FF9F1C]/10 rounded-xl">
+                      <h4 className="text-xs font-bold text-[#FF9F1C] uppercase tracking-wider mb-1">Assessment</h4>
+                      <p className="text-sm text-[#0B3060]">{a.overallAssessment}</p>
+                    </div>
+                  )}
+
+                  {/* SSL / Mobile / Schema / Speed */}
+                  {(a.hasWebsite || a.isReachable) && (
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                      {[
+                        { label: 'SSL', value: a.hasSSL ? 'Secure' : 'Not Secure', ok: a.hasSSL, icon: ShieldAlert },
+                        { label: 'Mobile', value: a.isMobileResponsive ? 'Responsive' : 'Not Responsive', ok: a.isMobileResponsive, icon: Smartphone },
+                        { label: 'Schema', value: a.hasSchemaMarkup ? 'Has Schema' : 'No Schema', ok: a.hasSchemaMarkup, icon: FileCode },
+                        { label: 'Speed', value: a.loadTimeMs ? `${(a.loadTimeMs / 1000).toFixed(1)}s` : 'N/A', ok: (a.loadTimeMs || 0) < 3000, icon: Clock },
+                      ].map(stat => (
+                        <div key={stat.label} className="p-3 bg-gray-50 rounded-xl text-center">
+                          <stat.icon size={16} className={`mx-auto mb-1 ${stat.ok ? 'text-emerald-500' : 'text-red-400'}`} />
+                          <p className="text-[10px] font-bold text-[#94A3B8] uppercase">{stat.label}</p>
+                          <p className={`text-xs font-bold ${stat.ok ? 'text-emerald-600' : 'text-red-500'}`}>{stat.value}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Tech Stack + City Pages */}
+                  {(a.hasWebsite || a.isReachable) && (
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="p-3 bg-gray-50 rounded-xl">
+                        <h4 className="text-xs font-bold text-[#64748B] uppercase mb-2">Tech Stack</h4>
+                        {techStack.length > 0 ? (
+                          <div className="flex flex-wrap gap-1">{techStack.map((t: string, i: number) => (
+                            <span key={i} className="px-2 py-0.5 bg-white border border-gray-200 rounded-md text-[10px] font-medium text-[#0B3060]">{t}</span>
+                          ))}</div>
+                        ) : <p className="text-xs text-[#94A3B8]">Unknown</p>}
+                      </div>
+                      <div className="p-3 bg-gray-50 rounded-xl">
+                        <h4 className="text-xs font-bold text-[#64748B] uppercase mb-2">City/Service Pages</h4>
+                        <p className={`text-xs font-bold ${a.cityServicePages ? 'text-emerald-600' : 'text-red-500'}`}>{a.cityServicePages ? 'Found' : 'Not detected'}</p>
+                        <p className="text-[10px] text-[#94A3B8] mt-1">Est. {a.estimatedPageCount || '?'} pages</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* SEO Issues */}
+                  {seoIssues.length > 0 && (
+                    <div className="p-4 bg-red-50/50 border border-red-100 rounded-xl">
+                      <h4 className="text-xs font-bold text-red-600 uppercase tracking-wider mb-2 flex items-center gap-1.5"><AlertTriangle size={14} /> SEO Issues ({seoIssues.length})</h4>
+                      <ul className="space-y-1.5">{seoIssues.map((issue: string, i: number) => (
+                        <li key={i} className="text-sm text-[#0B3060] flex items-start gap-2"><XCircle size={12} className="text-red-400 mt-0.5 flex-shrink-0" />{issue}</li>
+                      ))}</ul>
+                    </div>
+                  )}
+
+                  {/* Key Findings */}
+                  {keyFindings.length > 0 && (
+                    <div className="p-4 bg-blue-50/50 border border-blue-100 rounded-xl">
+                      <h4 className="text-xs font-bold text-blue-600 uppercase tracking-wider mb-2">Key Findings</h4>
+                      <ul className="space-y-1.5">{keyFindings.map((f: string, i: number) => (
+                        <li key={i} className="text-sm text-[#0B3060] flex items-start gap-2"><CheckCircle size={12} className="text-blue-500 mt-0.5 flex-shrink-0" />{f}</li>
+                      ))}</ul>
+                    </div>
+                  )}
 
                   {/* Personalized Email */}
                   {selectedLead.personalizedSubject && (
