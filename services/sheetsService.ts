@@ -10,7 +10,7 @@
 
 const SPREADSHEET_ID = '12su-WYevjlOFO6v-SkmtXLhhQtWNByZBcuK-p4xNrd0';
 const API_KEY = import.meta.env.VITE_GOOGLE_API_KEY || '';
-const RELAY_URL = 'http://localhost:3001';
+const RELAY_URL = import.meta.env.VITE_RELAY_URL || 'https://provider-os-production.up.railway.app';
 
 /**
  * FETCH LOGIC

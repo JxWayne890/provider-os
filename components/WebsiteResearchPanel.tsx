@@ -34,7 +34,7 @@ const WebsiteResearchPanel: React.FC<WebsiteResearchPanelProps> = ({ campaignId,
     setVerifying(true);
     try {
       const token = localStorage.getItem('relay_auth_token') || '';
-      const resp = await fetch('http://localhost:3001', {
+      const resp = await fetch('https://provider-os-production.up.railway.app', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
         body: JSON.stringify({ action: 'verify_emails_batch', campaign_id: campaignId, batch_size: 500 }),

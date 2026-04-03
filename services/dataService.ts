@@ -1,7 +1,7 @@
 import { supabase } from './supabase';
 import { Lead, Client, Deal, Payment, Session, Project, Task, Metric, ConfigItem, Contract, Campaign, CampaignLead, SuppressionEntry, SendLogEntry, TrackingEvent, Booking, CampaignStats, SendStatus, ResearchStats, PersonalizationStats, WebsiteAnalysis } from '../types';
 
-const RELAY_URL = 'http://localhost:3001';
+const RELAY_URL = import.meta.env.VITE_RELAY_URL || 'https://provider-os-production.up.railway.app';
 const RELAY_AUTH_TOKEN = import.meta.env.VITE_RELAY_AUTH_TOKEN || '';
 if (!RELAY_AUTH_TOKEN) console.warn("[dataService] WARNING: VITE_RELAY_AUTH_TOKEN is not set. Relay calls will fail with 401.");
 

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 
-const RELAY_URL = 'http://localhost:3001';
+const RELAY_URL = import.meta.env.VITE_RELAY_URL || 'https://provider-os-production.up.railway.app';
 const RELAY_AUTH_TOKEN = import.meta.env.VITE_RELAY_AUTH_TOKEN || '';
 
 interface UnsubscribePageProps {

@@ -13,7 +13,7 @@
 
 import { createClient } from '@supabase/supabase-js';
 
-const RELAY_URL = process.env.RELAY_URL || 'http://localhost:3001';
+const RELAY_URL = process.env.RELAY_URL || 'https://provider-os-production.up.railway.app';
 const RELAY_AUTH_TOKEN = process.env.RELAY_AUTH_TOKEN;
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
