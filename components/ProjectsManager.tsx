@@ -1,20 +1,24 @@
+import FileAttachments from './FileAttachments';
 
 import React from 'react';
-import { Project, Payment } from '../types';
+import { Project, Payment, Attachment } from '../types';
 import { Briefcase, Clock, CheckCircle2, AlertTriangle, ChevronRight, Layout, Milestone, Plus, DollarSign } from 'lucide-react';
 
 interface ProjectsManagerProps {
+    attachments?: Attachment[];
+    onAttachmentsUpdate?: () => void;
     projects: Project[];
     payments: Payment[];
 }
 
-const ProjectsManager: React.FC<ProjectsManagerProps> = ({ projects, payments }) => {
+const ProjectsManager: React.FC<ProjectsManagerProps> = ({ projects, payments, attachments, onAttachmentsUpdate }) => {
+    const [expandedProject, setExpandedProject] = React.useState<string | null>(null);
     const getStatusStyle = (status: string) => {
         switch (status) {
             case 'Finished': return 'text-[#1D9D60] bg-[#1D9D60]/10 border-[#1D9D60]/20';
             case 'In Progress': return 'text-[#0066CC] bg-[#0066CC]/10 border-[#0066CC]/20';
             case 'Blocked': return 'text-red-500 bg-red-500/10 border-red-500/20';
-            default: return 'text-[#86868B] bg-[#E8E8E8] border-black/5';
+            default: return 'text-[#64748B] bg-[#E8E8E8] border-black/5';
         }
     };
 
@@ -22,10 +26,10 @@ const ProjectsManager: React.FC<ProjectsManagerProps> = ({ projects, payments })
         <div className="space-y-10 animate-reveal pb-20">
             <div className="flex justify-between items-end">
                 <div>
-                    <h2 className="text-5xl font-serif font-bold text-[#1D1D1F] tracking-tight">Deployment Matrix</h2>
-                    <p className="text-[#86868B] mt-2 font-medium tracking-wide uppercase text-xs">Monitoring client success and mission-critical milestones</p>
+                    <h2 className="text-5xl font-serif font-bold text-[#1A1A2E] tracking-tight">Deployment Matrix</h2>
+                    <p className="text-[#64748B] mt-2 font-medium tracking-wide uppercase text-xs">Monitoring client success and mission-critical milestones</p>
                 </div>
-                <button className="flex items-center gap-2 px-8 py-3 luminous-button-gold rounded-2xl text-sm font-bold shadow-lg shadow-[#B8860B]/20">
+                <button className="flex items-center gap-2 px-8 py-3 luminous-button-gold rounded-2xl text-sm font-bold shadow-lg shadow-[#FF9F1C]/20">
                     <Plus size={18} /> New Project
                 </button>
             </div>
@@ -36,32 +40,32 @@ const ProjectsManager: React.FC<ProjectsManagerProps> = ({ projects, payments })
                         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-10">
                             <div className="space-y-4 flex-1">
                                 <div className="flex items-start gap-5">
-                                    <div className="w-14 h-14 bg-[#F5F5F7] rounded-[22px] flex items-center justify-center border border-black/5 shadow-inner">
-                                        <Layout size={24} className="text-[#B8860B]" />
+                                    <div className="w-14 h-14 bg-[#F7F8FA] rounded-[22px] flex items-center justify-center border border-black/5 shadow-inner">
+                                        <Layout size={24} className="text-[#FF9F1C]" />
                                     </div>
                                     <div>
-                                        <h3 className="text-2xl font-serif font-bold text-[#1D1D1F] group-hover:text-[#B8860B] transition-colors">{project.name}</h3>
-                                        <p className="text-sm text-[#86868B] font-serif italic max-w-xl">{project.scopeSummary}</p>
+                                        <h3 className="text-2xl font-serif font-bold text-[#1A1A2E] group-hover:text-[#FF9F1C] transition-colors">{project.name}</h3>
+                                        <p className="text-sm text-[#64748B] font-serif italic max-w-xl">{project.scopeSummary}</p>
                                     </div>
                                 </div>
 
                                 <div className="flex flex-wrap gap-8">
                                     <div className="flex items-center gap-3">
-                                        <div className="w-8 h-8 rounded-lg bg-[#F5F5F7] flex items-center justify-center border border-black/5">
-                                            <Milestone size={14} className="text-[#B8860B]" />
+                                        <div className="w-8 h-8 rounded-lg bg-[#F7F8FA] flex items-center justify-center border border-black/5">
+                                            <Milestone size={14} className="text-[#FF9F1C]" />
                                         </div>
                                         <div className="flex flex-col">
-                                            <span className="text-[10px] font-bold text-[#86868B] uppercase tracking-widest">Milestone</span>
-                                            <span className="text-sm font-bold text-[#1D1D1F]">{project.currentMilestone}</span>
+                                            <span className="text-[10px] font-bold text-[#64748B] uppercase tracking-widest">Milestone</span>
+                                            <span className="text-sm font-bold text-[#1A1A2E]">{project.currentMilestone}</span>
                                         </div>
                                     </div>
                                     <div className="flex items-center gap-3">
-                                        <div className="w-8 h-8 rounded-lg bg-[#F5F5F7] flex items-center justify-center border border-black/5">
-                                            <Clock size={14} className="text-[#86868B]" />
+                                        <div className="w-8 h-8 rounded-lg bg-[#F7F8FA] flex items-center justify-center border border-black/5">
+                                            <Clock size={14} className="text-[#64748B]" />
                                         </div>
                                         <div className="flex flex-col">
-                                            <span className="text-[10px] font-bold text-[#86868B] uppercase tracking-widest">Deadline</span>
-                                            <span className="text-sm font-bold text-[#1D1D1F]">{project.dueDate}</span>
+                                            <span className="text-[10px] font-bold text-[#64748B] uppercase tracking-widest">Deadline</span>
+                                            <span className="text-sm font-bold text-[#1A1A2E]">{project.dueDate}</span>
                                         </div>
                                     </div>
                                 </div>
@@ -69,12 +73,12 @@ const ProjectsManager: React.FC<ProjectsManagerProps> = ({ projects, payments })
 
                             <div className="flex flex-col sm:flex-row items-center gap-8 lg:min-w-[400px] justify-end">
                                 <div className="space-y-2 w-full sm:w-48">
-                                    <div className="flex justify-between text-[10px] font-bold uppercase tracking-[0.2em] text-[#86868B]">
+                                    <div className="flex justify-between text-[10px] font-bold uppercase tracking-[0.2em] text-[#64748B]">
                                         <span>Velocity</span>
-                                        <span className="text-[#1D1D1F]">65%</span>
+                                        <span className="text-[#1A1A2E]">65%</span>
                                     </div>
-                                    <div className="h-2 w-full bg-[#F5F5F7] rounded-full overflow-hidden border border-black/5">
-                                        <div className="h-full bg-[#B8860B] rounded-full w-2/3 shadow-sm"></div>
+                                    <div className="h-2 w-full bg-[#F7F8FA] rounded-full overflow-hidden border border-black/5">
+                                        <div className="h-full bg-[#FF9F1C] rounded-full w-2/3 shadow-sm"></div>
                                     </div>
                                 </div>
 
@@ -82,7 +86,7 @@ const ProjectsManager: React.FC<ProjectsManagerProps> = ({ projects, payments })
                                     {project.status}
                                 </span>
 
-                                <button className="p-3 text-[#86868B] hover:text-[#1D1D1F] hover:bg-[#F5F5F7] rounded-2xl transition-all">
+                                <button onClick={(ev) => { ev.stopPropagation(); setExpandedProject(expandedProject === project.id ? null : project.id); }} className="p-3 text-[#64748B] hover:text-[#1A1A2E] hover:bg-[#F7F8FA] rounded-2xl transition-all">
                                     <ChevronRight size={24} />
                                 </button>
                             </div>
@@ -97,7 +101,7 @@ const ProjectsManager: React.FC<ProjectsManagerProps> = ({ projects, payments })
                                     </div>
                                     <div>
                                         <span className="text-[10px] font-bold text-[#1D9D60] uppercase tracking-widest block">Revenue Reconciled</span>
-                                        <span className="text-xs font-medium text-[#1D1D1F]">
+                                        <span className="text-xs font-medium text-[#1A1A2E]">
                                             Payment of ${payments.find(p => p.clientId === project.clientId && p.status === 'Paid')?.amount.toLocaleString()} verified in Stripe.
                                         </span>
                                     </div>
@@ -107,6 +111,14 @@ const ProjectsManager: React.FC<ProjectsManagerProps> = ({ projects, payments })
                                         Auto-Advance to In Progress
                                     </button>
                                 )}
+                            </div>
+                        )}
+
+                        {/* File Attachments */}
+                        {expandedProject === project.id && attachments && onAttachmentsUpdate && (
+                            <div className="mt-6 p-6 bg-gray-50 rounded-2xl border border-[#E2E8F0]">
+                                <h4 className="text-sm font-bold text-[#1A1A2E] uppercase tracking-wide mb-4">Attachments</h4>
+                                <FileAttachments entityType="project" entityId={project.id} attachments={attachments} onUpdate={onAttachmentsUpdate} />
                             </div>
                         )}
 
@@ -122,7 +134,7 @@ const ProjectsManager: React.FC<ProjectsManagerProps> = ({ projects, payments })
                 ))}
 
                 {projects.length === 0 && (
-                    <div className="py-32 flex flex-col items-center justify-center text-[#86868B]">
+                    <div className="py-32 flex flex-col items-center justify-center text-[#64748B]">
                         <Briefcase size={48} className="mb-6 opacity-20" />
                         <p className="font-serif italic text-lg">System idling. No active deployments detected.</p>
                     </div>

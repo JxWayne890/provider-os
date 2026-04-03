@@ -1,0 +1,439 @@
+import React, { useState, useEffect, useMemo } from 'react';
+import { Search, Filter, Download, Globe, Mail, MapPin, Building2, ExternalLink, ChevronDown, ChevronUp, Eye, ArrowUpRight, X, ShieldAlert, Smartphone, FileCode, Clock, Layers, AlertTriangle, CheckCircle, XCircle } from 'lucide-react';
+import { CampaignLead, Campaign, SendStatus } from '../types';
+import { fetchAllCampaignLeads, fetchCampaigns, calculateResearchStats, streamAllCampaignLeads } from '../services/dataService';
+import { supabase } from '../services/supabase';
+import ReactDOM from 'react-dom';
+import LeadScoreBar from './LeadScoreBar';
+
+const LeadDatabase: React.FC = () => {
+  const [leads, setLeads] = useState<CampaignLead[]>([]);
+  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [scoreFilter, setScoreFilter] = useState<string>('all');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [campaignFilter, setCampaignFilter] = useState<string>('all');
+  const [sortField, setSortField] = useState<'score' | 'company' | 'date' | 'status'>('score');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
+  const [selectedLead, setSelectedLead] = useState<CampaignLead | null>(null);
+  const [page, setPage] = useState(0);
+  const PAGE_SIZE = 50;
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const loadData = async () => {
+    // Load campaigns instantly (small data)
+    const allCampaigns = await fetchCampaigns();
+    setCampaigns(allCampaigns);
+    setLoading(false);
+
+    // Stream leads page by page — first 1000 appear in ~500ms
+    await streamAllCampaignLeads((partialLeads) => {
+      setLeads(partialLeads);
+    });
+  };
+
+  const campaignMap = useMemo(() => {
+    const m: Record<string, string> = {};
+    campaigns.forEach(c => { m[c.id] = c.name; });
+    return m;
+  }, [campaigns]);
+
+  // Filter + sort
+  const filtered = useMemo(() => {
+    let result = leads;
+
+    if (searchTerm) {
+      const term = searchTerm.toLowerCase();
+      result = result.filter(l =>
+        l.email.toLowerCase().includes(term) ||
+        l.companyName.toLowerCase().includes(term) ||
+        l.city.toLowerCase().includes(term) ||
+        l.state.toLowerCase().includes(term) ||
+        l.website.toLowerCase().includes(term)
+      );
+    }
+
+    if (scoreFilter !== 'all') {
+      const [min, max] = scoreFilter.split('-').map(Number);
+      result = result.filter(l => l.websiteScore >= min && l.websiteScore <= max);
+    }
+
+    if (statusFilter !== 'all') {
+      result = result.filter(l => l.sendStatus === statusFilter);
+    }
+
+    if (campaignFilter !== 'all') {
+      result = result.filter(l => l.campaignId === campaignFilter);
+    }
+
+    // Sort
+    result = [...result].sort((a, b) => {
+      let cmp = 0;
+      if (sortField === 'score') cmp = a.websiteScore - b.websiteScore;
+      else if (sortField === 'company') cmp = (a.companyName || '').localeCompare(b.companyName || '');
+      else if (sortField === 'date') cmp = (a.createdAt || '').localeCompare(b.createdAt || '');
+      else if (sortField === 'status') cmp = a.sendStatus.localeCompare(b.sendStatus);
+      return sortDir === 'desc' ? -cmp : cmp;
+    });
+
+    return result;
+  }, [leads, searchTerm, scoreFilter, statusFilter, campaignFilter, sortField, sortDir]);
+
+  const paged = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+  const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
+
+  const stats = useMemo(() => calculateResearchStats(leads), [leads]);
+  const hotLeads = useMemo(() => leads.filter(l => l.websiteScore >= 9).length, [leads]);
+  const sentLeads = useMemo(() => leads.filter(l => l.sendStatus !== SendStatus.QUEUED && l.sendStatus !== SendStatus.SUPPRESSED).length, [leads]);
+
+  const toggleSort = (field: typeof sortField) => {
+    if (sortField === field) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    else { setSortField(field); setSortDir('desc'); }
+    setPage(0);
+  };
+
+  const SortIcon = ({ field }: { field: typeof sortField }) => {
+    if (sortField !== field) return null;
+    return sortDir === 'desc' ? <ChevronDown size={12} /> : <ChevronUp size={12} />;
+  };
+
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center py-40 animate-reveal">
+        <div className="w-12 h-12 border-4 border-[#0B3060] border-t-transparent rounded-full animate-spin mb-4"></div>
+        <p className="text-[#64748B] font-serif italic text-lg">Loading leads...</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6 animate-reveal">
+      {/* Header */}
+      <header className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+        <div>
+          <h1 className="text-3xl md:text-4xl font-serif font-bold text-[#0B3060] tracking-tight">Leads</h1>
+          <p className="text-[#64748B] mt-1 font-medium text-sm">
+            {leads.length.toLocaleString()} total leads across {campaigns.length} campaign{campaigns.length !== 1 ? 's' : ''}
+          </p>
+        </div>
+      </header>
+
+      {/* KPI cards */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+        {[
+          { label: 'Total Leads', value: leads.length.toLocaleString(), color: 'text-[#0B3060]' },
+          { label: 'Researched', value: (stats.total - stats.pending).toLocaleString(), color: 'text-blue-600' },
+          { label: 'Hot (9-10)', value: hotLeads.toLocaleString(), color: 'text-emerald-600' },
+          { label: 'Avg Score', value: stats.avgScore.toFixed(1), color: 'text-[#FF9F1C]' },
+          { label: 'Sent', value: sentLeads.toLocaleString(), color: 'text-purple-600' },
+        ].map(kpi => (
+          <div key={kpi.label} className="bg-white border border-[#E2E8F0] rounded-xl p-4">
+            <p className={`text-2xl font-bold ${kpi.color}`}>{kpi.value}</p>
+            <p className="text-[10px] font-bold text-[#94A3B8] uppercase tracking-wider mt-1">{kpi.label}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Search + Filters */}
+      <div className="flex flex-col md:flex-row gap-3">
+        <div className="flex-1 flex items-center gap-2 bg-white border border-[#E2E8F0] rounded-xl px-4 py-2.5 focus-within:ring-2 focus-within:ring-[#0B3060]/10">
+          <Search size={16} className="text-[#94A3B8]" />
+          <input
+            type="text" value={searchTerm} onChange={e => { setSearchTerm(e.target.value); setPage(0); }}
+            placeholder="Search by company, email, city, website..."
+            className="bg-transparent border-none outline-none text-sm font-medium w-full text-[#1A1A2E] placeholder-[#94A3B8]"
+          />
+          {searchTerm && (
+            <button onClick={() => setSearchTerm('')} className="p-0.5 hover:bg-[#F7F8FA] rounded">
+              <X size={14} className="text-[#94A3B8]" />
+            </button>
+          )}
+        </div>
+
+        <div className="flex gap-2 flex-wrap">
+          {/* Score filter */}
+          <select value={scoreFilter} onChange={e => { setScoreFilter(e.target.value); setPage(0); }}
+            className="text-xs bg-white border border-[#E2E8F0] rounded-lg px-3 py-2.5 outline-none font-medium text-[#1A1A2E]">
+            <option value="all">All Scores</option>
+            <option value="9-10">Score 9-10 (Hot)</option>
+            <option value="7-8">Score 7-8 (Strong)</option>
+            <option value="5-6">Score 5-6 (Good)</option>
+            <option value="3-4">Score 3-4 (Moderate)</option>
+            <option value="1-2">Score 1-2 (Low)</option>
+            <option value="0-0">Not Scored</option>
+          </select>
+
+          {/* Status filter */}
+          <select value={statusFilter} onChange={e => { setStatusFilter(e.target.value); setPage(0); }}
+            className="text-xs bg-white border border-[#E2E8F0] rounded-lg px-3 py-2.5 outline-none font-medium text-[#1A1A2E]">
+            <option value="all">All Statuses</option>
+            <option value="queued">Queued</option>
+            <option value="sent">Sent</option>
+            <option value="opened">Opened</option>
+            <option value="clicked">Clicked</option>
+            <option value="replied">Replied</option>
+            <option value="bounced">Bounced</option>
+          </select>
+
+          {/* Campaign filter */}
+          <select value={campaignFilter} onChange={e => { setCampaignFilter(e.target.value); setPage(0); }}
+            className="text-xs bg-white border border-[#E2E8F0] rounded-lg px-3 py-2.5 outline-none font-medium text-[#1A1A2E] max-w-[180px]">
+            <option value="all">All Campaigns</option>
+            {campaigns.map(c => (
+              <option key={c.id} value={c.id}>{c.name}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      {/* Results count */}
+      <div className="flex items-center justify-between">
+        <p className="text-xs text-[#64748B] font-medium">
+          {filtered.length === leads.length
+            ? `${filtered.length.toLocaleString()} leads`
+            : `${filtered.length.toLocaleString()} of ${leads.length.toLocaleString()} leads`
+          }
+        </p>
+      </div>
+
+      {/* Table */}
+      <div className="bg-white border border-[#E2E8F0] rounded-xl overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="border-b border-[#E2E8F0] bg-[#F7F8FA]">
+                <th className="text-left py-3 px-3 text-[#64748B] font-semibold cursor-pointer hover:text-[#0B3060]" onClick={() => toggleSort('company')}>
+                  <span className="flex items-center gap-1">Company <SortIcon field="company" /></span>
+                </th>
+                <th className="text-left py-3 px-3 text-[#64748B] font-semibold">Email</th>
+                <th className="text-left py-3 px-3 text-[#64748B] font-semibold">Location</th>
+                <th className="text-left py-3 px-3 text-[#64748B] font-semibold cursor-pointer hover:text-[#0B3060]" onClick={() => toggleSort('score')}>
+                  <span className="flex items-center gap-1">Score <SortIcon field="score" /></span>
+                </th>
+                <th className="text-left py-3 px-3 text-[#64748B] font-semibold">Website</th>
+                <th className="text-left py-3 px-3 text-[#64748B] font-semibold cursor-pointer hover:text-[#0B3060]" onClick={() => toggleSort('status')}>
+                  <span className="flex items-center gap-1">Status <SortIcon field="status" /></span>
+                </th>
+                <th className="text-left py-3 px-3 text-[#64748B] font-semibold">Campaign</th>
+              </tr>
+            </thead>
+            <tbody>
+              {paged.map(lead => (
+                <tr
+                  key={lead.id}
+                  className="border-b border-[#E2E8F0]/50 hover:bg-[#F7F8FA] cursor-pointer transition-all"
+                  onClick={() => setSelectedLead(selectedLead?.id === lead.id ? null : lead)}
+                >
+                  <td className="py-2.5 px-3">
+                    <p className="font-semibold text-[#1A1A2E]">{lead.companyName || '—'}</p>
+                  </td>
+                  <td className="py-2.5 px-3 text-[#475569]">{lead.email}</td>
+                  <td className="py-2.5 px-3 text-[#64748B]">{[lead.city, lead.state].filter(Boolean).join(', ') || '—'}</td>
+                  <td className="py-2.5 px-3"><LeadScoreBar score={lead.websiteScore} showLabel /></td>
+                  <td className="py-2.5 px-3">
+                    {lead.website ? (
+                      <span className="text-[#64748B] truncate block max-w-[140px]">{lead.website.replace(/^https?:\/\//, '').replace(/\/$/, '')}</span>
+                    ) : (
+                      <span className="text-[#CBD5E1]">None</span>
+                    )}
+                  </td>
+                  <td className="py-2.5 px-3">
+                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${
+                      lead.sendStatus === SendStatus.SENT ? 'bg-blue-50 text-blue-600' :
+                      lead.sendStatus === SendStatus.OPENED ? 'bg-emerald-50 text-emerald-600' :
+                      lead.sendStatus === SendStatus.CLICKED ? 'bg-purple-50 text-purple-600' :
+                      lead.sendStatus === SendStatus.REPLIED ? 'bg-[#FF9F1C]/10 text-[#FF9F1C]' :
+                      lead.sendStatus === SendStatus.BOUNCED ? 'bg-red-50 text-red-600' :
+                      'bg-gray-50 text-[#94A3B8]'
+                    }`}>{lead.sendStatus}</span>
+                  </td>
+                  <td className="py-2.5 px-3">
+                    <span className="text-[10px] text-[#94A3B8] truncate block max-w-[120px]">{campaignMap[lead.campaignId] || '—'}</span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between px-4 py-3 border-t border-[#E2E8F0]">
+            <p className="text-xs text-[#94A3B8]">
+              Page {page + 1} of {totalPages}
+            </p>
+            <div className="flex gap-1">
+              <button onClick={() => setPage(p => Math.max(0, p - 1))} disabled={page === 0}
+                className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-[#F7F8FA] text-[#64748B] hover:bg-[#E2E8F0] disabled:opacity-40 transition-all">
+                Prev
+              </button>
+              <button onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))} disabled={page >= totalPages - 1}
+                className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-[#F7F8FA] text-[#64748B] hover:bg-[#E2E8F0] disabled:opacity-40 transition-all">
+                Next
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Lead detail drawer */}
+      {selectedLead && ReactDOM.createPortal(
+        (() => {
+          const a: any = typeof selectedLead.websiteAnalysis === 'object' && selectedLead.websiteAnalysis ? selectedLead.websiteAnalysis : {};
+          const seoIssues: string[] = Array.isArray(a.seoIssues) ? a.seoIssues : [];
+          const keyFindings: string[] = Array.isArray(a.keyFindings) ? a.keyFindings : [];
+          const techStack: string[] = Array.isArray(a.techStack) ? a.techStack : [];
+          return (
+            <div className="fixed inset-0 z-[999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={() => setSelectedLead(null)}>
+              <div className="w-full max-w-2xl bg-white rounded-3xl shadow-2xl overflow-hidden max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+                {/* Header */}
+                <div className="bg-[#0B3060] text-white p-6">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <h2 className="text-xl font-serif font-bold">{selectedLead.companyName || 'Unknown Business'}</h2>
+                      <p className="text-sm text-white/60 mt-1">{selectedLead.email}</p>
+                      {selectedLead.city && <p className="text-sm text-white/40 mt-0.5">{selectedLead.city}{selectedLead.state ? `, ${selectedLead.state}` : ''}</p>}
+                    </div>
+                    <button onClick={() => setSelectedLead(null)} className="p-2 hover:bg-white/10 rounded-xl transition-all"><X size={20} /></button>
+                  </div>
+                  <div className="flex items-center gap-4 mt-4">
+                    <div className={`text-3xl font-bold ${selectedLead.websiteScore >= 9 ? 'text-emerald-400' : selectedLead.websiteScore >= 7 ? 'text-amber-400' : selectedLead.websiteScore >= 5 ? 'text-blue-400' : 'text-gray-400'}`}>
+                      {selectedLead.websiteScore}/10
+                    </div>
+                    <div className="text-sm text-white/60">
+                      {selectedLead.websiteScore >= 9 ? 'Highest Priority — No website or unreachable' :
+                       selectedLead.websiteScore >= 7 ? 'High Priority — Major website issues' :
+                       selectedLead.websiteScore >= 5 ? 'Medium Priority — Missing SEO/city pages' :
+                       selectedLead.websiteScore >= 3 ? 'Lower Priority — Decent website' : 'Low Priority — Good website'}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="p-6 space-y-5">
+                  {/* Website URL */}
+                  <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
+                    <Globe size={16} className="text-[#64748B] flex-shrink-0" />
+                    {selectedLead.website ? (
+                      <a href={selectedLead.website.startsWith('http') ? selectedLead.website : `https://${selectedLead.website}`} target="_blank" rel="noopener noreferrer"
+                        className="text-sm text-blue-600 hover:underline truncate flex items-center gap-1">
+                        {selectedLead.website.replace(/^https?:\/\//, '').replace(/\/$/, '')} <ExternalLink size={12} />
+                      </a>
+                    ) : <span className="text-sm text-red-500 font-medium">No website found</span>}
+                  </div>
+
+                  {/* Campaign + Status */}
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <div className="p-3 bg-gray-50 rounded-xl text-center">
+                      <p className="text-[10px] font-bold text-[#94A3B8] uppercase">Campaign</p>
+                      <p className="text-xs font-bold text-[#0B3060] mt-1 truncate">{campaignMap[selectedLead.campaignId] || '—'}</p>
+                    </div>
+                    <div className="p-3 bg-gray-50 rounded-xl text-center">
+                      <p className="text-[10px] font-bold text-[#94A3B8] uppercase">Send Status</p>
+                      <p className="text-xs font-bold text-[#0B3060] mt-1 capitalize">{selectedLead.sendStatus}</p>
+                    </div>
+                    <div className="p-3 bg-gray-50 rounded-xl text-center">
+                      <p className="text-[10px] font-bold text-[#94A3B8] uppercase">Engagement</p>
+                      <p className="text-xs font-bold text-[#0B3060] mt-1">{selectedLead.engagementScore}</p>
+                    </div>
+                    <div className="p-3 bg-gray-50 rounded-xl text-center">
+                      <p className="text-[10px] font-bold text-[#94A3B8] uppercase">Research</p>
+                      <p className="text-xs font-bold text-[#0B3060] mt-1 capitalize">{selectedLead.websiteStatus}</p>
+                    </div>
+                  </div>
+
+                  {/* Assessment */}
+                  {a.overallAssessment && (
+                    <div className="p-4 bg-[#FF9F1C]/5 border border-[#FF9F1C]/10 rounded-xl">
+                      <h4 className="text-xs font-bold text-[#FF9F1C] uppercase tracking-wider mb-1">Assessment</h4>
+                      <p className="text-sm text-[#0B3060]">{a.overallAssessment}</p>
+                    </div>
+                  )}
+
+                  {/* Quick Stats */}
+                  {a.hasWebsite && (
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                      {[
+                        { label: 'SSL', value: a.hasSSL ? 'Secure' : 'Not Secure', ok: a.hasSSL, icon: ShieldAlert },
+                        { label: 'Mobile', value: a.isMobileResponsive ? 'Responsive' : 'Not Responsive', ok: a.isMobileResponsive, icon: Smartphone },
+                        { label: 'Schema', value: a.hasSchemaMarkup ? 'Has Schema' : 'No Schema', ok: a.hasSchemaMarkup, icon: FileCode },
+                        { label: 'Speed', value: a.loadTimeMs ? `${(a.loadTimeMs / 1000).toFixed(1)}s` : 'N/A', ok: (a.loadTimeMs || 0) < 3000, icon: Clock },
+                      ].map(stat => (
+                        <div key={stat.label} className="p-3 bg-gray-50 rounded-xl text-center">
+                          <stat.icon size={16} className={`mx-auto mb-1 ${stat.ok ? 'text-emerald-500' : 'text-red-400'}`} />
+                          <p className="text-[10px] font-bold text-[#94A3B8] uppercase">{stat.label}</p>
+                          <p className={`text-xs font-bold ${stat.ok ? 'text-emerald-600' : 'text-red-500'}`}>{stat.value}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Tech + City Pages */}
+                  {a.hasWebsite && (
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="p-3 bg-gray-50 rounded-xl">
+                        <h4 className="text-xs font-bold text-[#64748B] uppercase mb-2">Tech Stack</h4>
+                        {techStack.length > 0 ? (
+                          <div className="flex flex-wrap gap-1">{techStack.map((t: string, i: number) => (
+                            <span key={i} className="px-2 py-0.5 bg-white border border-gray-200 rounded-md text-[10px] font-medium text-[#0B3060]">{t}</span>
+                          ))}</div>
+                        ) : <p className="text-xs text-[#94A3B8]">Unknown</p>}
+                      </div>
+                      <div className="p-3 bg-gray-50 rounded-xl">
+                        <h4 className="text-xs font-bold text-[#64748B] uppercase mb-2">City/Service Pages</h4>
+                        <p className={`text-xs font-bold ${a.cityServicePages ? 'text-emerald-600' : 'text-red-500'}`}>{a.cityServicePages ? 'Found' : 'Not detected'}</p>
+                        <p className="text-[10px] text-[#94A3B8] mt-1">Est. {a.estimatedPageCount || '?'} pages</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* SEO Issues */}
+                  {seoIssues.length > 0 && (
+                    <div className="p-4 bg-red-50/50 border border-red-100 rounded-xl">
+                      <h4 className="text-xs font-bold text-red-600 uppercase tracking-wider mb-2 flex items-center gap-1.5"><AlertTriangle size={14} /> SEO Issues ({seoIssues.length})</h4>
+                      <ul className="space-y-1.5">{seoIssues.map((issue: string, i: number) => (
+                        <li key={i} className="text-sm text-[#0B3060] flex items-start gap-2"><XCircle size={12} className="text-red-400 mt-0.5 flex-shrink-0" />{issue}</li>
+                      ))}</ul>
+                    </div>
+                  )}
+
+                  {/* Key Findings */}
+                  {keyFindings.length > 0 && (
+                    <div className="p-4 bg-blue-50/50 border border-blue-100 rounded-xl">
+                      <h4 className="text-xs font-bold text-blue-600 uppercase tracking-wider mb-2">Key Findings</h4>
+                      <ul className="space-y-1.5">{keyFindings.map((f: string, i: number) => (
+                        <li key={i} className="text-sm text-[#0B3060] flex items-start gap-2"><CheckCircle size={12} className="text-blue-500 mt-0.5 flex-shrink-0" />{f}</li>
+                      ))}</ul>
+                    </div>
+                  )}
+
+                  {/* Personalized Email Preview */}
+                  {selectedLead.personalizedSubject && (
+                    <div className="p-4 bg-[#0B3060]/5 border border-[#0B3060]/10 rounded-xl">
+                      <h4 className="text-xs font-bold text-[#0B3060] uppercase tracking-wider mb-2">Personalized Email</h4>
+                      <p className="text-sm font-semibold text-[#0B3060] mb-2">{selectedLead.personalizedSubject}</p>
+                      <div className="text-xs text-[#64748B] leading-relaxed whitespace-pre-wrap">{selectedLead.personalizedBody?.replace(/<[^>]*>/g, '') || ''}</div>
+                    </div>
+                  )}
+
+                  {/* Timestamps */}
+                  <div className="grid grid-cols-3 gap-2 pt-2 border-t border-[#E2E8F0]">
+                    {selectedLead.sentAt && <div className="text-center"><p className="text-[10px] text-[#94A3B8] uppercase">Sent</p><p className="text-xs font-medium text-[#0B3060]">{new Date(selectedLead.sentAt).toLocaleDateString()}</p></div>}
+                    {selectedLead.openedAt && <div className="text-center"><p className="text-[10px] text-[#94A3B8] uppercase">Opened</p><p className="text-xs font-medium text-[#0B3060]">{new Date(selectedLead.openedAt).toLocaleDateString()}</p></div>}
+                    {selectedLead.clickedAt && <div className="text-center"><p className="text-[10px] text-[#94A3B8] uppercase">Clicked</p><p className="text-xs font-medium text-[#0B3060]">{new Date(selectedLead.clickedAt).toLocaleDateString()}</p></div>}
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })(),
+        document.body
+      )}
+    </div>
+  );
+};
+
+export default LeadDatabase;

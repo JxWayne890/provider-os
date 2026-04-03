@@ -1,3 +1,210 @@
+// ============================================================
+// Outreach System Enums
+// ============================================================
+
+export enum CampaignStatus {
+  DRAFT = 'draft',
+  ACTIVE = 'active',
+  PAUSED = 'paused',
+  COMPLETED = 'completed',
+}
+
+export enum SendStatus {
+  QUEUED = 'queued',
+  SENDING = 'sending',
+  SENT = 'sent',
+  OPENED = 'opened',
+  CLICKED = 'clicked',
+  REPLIED = 'replied',
+  BOUNCED = 'bounced',
+  FAILED = 'failed',
+  SUPPRESSED = 'suppressed',
+}
+
+export enum SuppressionReason {
+  UNSUBSCRIBED = 'unsubscribed',
+  BOUNCED = 'bounced',
+  REPLIED = 'replied',
+  MANUAL = 'manual',
+  COMPLAINED = 'complained',
+}
+
+export enum TrackingEventType {
+  OPEN = 'open',
+  CLICK = 'click',
+  UNSUBSCRIBE = 'unsubscribe',
+}
+
+// ============================================================
+// Website Research & AI Personalization Types
+// ============================================================
+
+export interface WebsiteAnalysis {
+  hasWebsite: boolean;
+  isReachable: boolean;
+  httpStatus: number;
+  hasSSL: boolean;
+  isMobileResponsive: boolean;
+  hasSchemaMarkup: boolean;
+  metaTitle: string;
+  metaDescription: string;
+  h1Tags: string[];
+  cityServicePages: boolean;
+  estimatedPageCount: number;
+  techStack: string[];
+  loadTimeMs: number;
+  seoIssues: string[];
+  overallAssessment: string;
+  keyFindings: string[];
+}
+
+export type WebsiteStatus = 'pending' | 'crawling' | 'crawled' | 'no_website' | 'error';
+export type PersonalizationStatus = 'pending' | 'generating' | 'done' | 'error';
+
+// ============================================================
+// Outreach System Interfaces
+// ============================================================
+
+export interface Campaign {
+  id: string;
+  name: string;
+  subjectTemplate: string;
+  bodyTemplate: string;
+  fromName: string;
+  fromEmail: string;
+  status: CampaignStatus;
+  dailyLimit: number;
+  sendTime: string;
+  weekdaysOnly: boolean;
+  warmupEnabled: boolean;
+  warmupDay: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CampaignLead {
+  id: string;
+  campaignId: string;
+  email: string;
+  companyName: string;
+  city: string;
+  state: string;
+  country: string;
+  website: string;
+  verificationStatus: string;
+  sendStatus: SendStatus;
+  engagementScore: number;
+  sentAt?: string;
+  openedAt?: string;
+  clickedAt?: string;
+  repliedAt?: string;
+  bouncedAt?: string;
+  errorMessage?: string;
+  createdAt: string;
+  // Research & personalization fields
+  websiteStatus: WebsiteStatus;
+  websiteScore: number;
+  websiteAnalysis: WebsiteAnalysis | Record<string, never>;
+  personalizedSubject?: string;
+  personalizedBody?: string;
+  personalizationStatus: PersonalizationStatus;
+  researchCompletedAt?: string;
+  priorityRank: number;
+  // Email verification fields
+  emailStatus?: string;
+  emailValid?: boolean;
+  emailVerification?: {
+    valid: boolean;
+    status: string;
+    mx_records: { exchange: string; priority: number }[];
+    domain?: string;
+    is_free_provider?: boolean;
+    reason: string;
+  };
+}
+
+export interface SuppressionEntry {
+  id: string;
+  email: string;
+  reason: SuppressionReason;
+  suppressedAt: string;
+  sourceCampaignId?: string;
+}
+
+export interface SendLogEntry {
+  id: string;
+  campaignId: string;
+  campaignLeadId: string;
+  email: string;
+  resendMessageId?: string;
+  status: string;
+  batchId?: string;
+  sentAt: string;
+  openedAt?: string;
+  clickedAt?: string;
+  errorMessage?: string;
+}
+
+export interface TrackingEvent {
+  id: string;
+  sendLogId?: string;
+  campaignLeadId: string;
+  eventType: TrackingEventType;
+  linkUrl?: string;
+  userAgent?: string;
+  ipAddress?: string;
+  createdAt: string;
+}
+
+export interface Booking {
+  id: string;
+  campaignLeadId?: string;
+  leadName: string;
+  leadEmail: string;
+  leadPhone: string;
+  scheduledAt: string;
+  googleEventId?: string;
+  googleMeetLink?: string;
+  status: 'confirmed' | 'cancelled' | 'completed';
+  source: string;
+  createdAt: string;
+}
+
+export interface CampaignStats {
+  totalLeads: number;
+  sent: number;
+  opened: number;
+  clicked: number;
+  replied: number;
+  bounced: number;
+  failed: number;
+  suppressed: number;
+  openRate: number;
+  clickRate: number;
+  replyRate: number;
+  bounceRate: number;
+}
+
+export interface ResearchStats {
+  total: number;
+  pending: number;
+  crawled: number;
+  noWebsite: number;
+  errors: number;
+  avgScore: number;
+  scoreDistribution: Record<string, number>;
+}
+
+export interface PersonalizationStats {
+  total: number;
+  pending: number;
+  done: number;
+  errors: number;
+}
+
+// ============================================================
+// Existing Enums
+// ============================================================
 
 export enum DealStage {
   NEW = 'New',
@@ -120,7 +327,7 @@ export interface Project {
 
 export interface Task {
   id: string;
-  relatedId: string; // Lead/Client/Project ID
+  relatedId: string;
   description: string;
   priority: 'Low' | 'Medium' | 'High';
   owner: string;
@@ -143,8 +350,71 @@ export interface Metric {
 
 export interface ConfigItem {
   key: string;
-  settingKey?: string; // Optional for backward compatibility
+  settingKey?: string;
   value: string;
   description: string;
   category: string;
+}
+
+export interface Contract {
+  id: string;
+  clientId?: string;
+  recipientName: string;
+  recipientEmail: string;
+  title: string;
+  content: string;
+  status: 'Draft' | 'Sent' | 'Signed' | 'Declined';
+  createdAt: string;
+  sentAt?: string;
+  signedAt?: string;
+  signatureData?: string;
+}
+
+export interface Notification {
+  id: string;
+  type: 'payment_received' | 'invoice_overdue' | 'meeting_soon' | 'contract_signed' | 'booking_created' | 'lead_replied';
+  title: string;
+  message: string;
+  link: string;
+  read: boolean;
+  createdAt: string;
+}
+
+export interface Proposal {
+  id: string;
+  clientId: string;
+  title: string;
+  lineItems: { description: string; price: number }[];
+  total: number;
+  terms: string;
+  status: 'Draft' | 'Sent' | 'Accepted' | 'Declined' | 'Expired';
+  expiresAt: string;
+  createdAt: string;
+  acceptedAt?: string;
+  proposalUrl?: string;
+}
+
+export interface Expense {
+  id: string;
+  description: string;
+  amount: number;
+  category: 'Software' | 'Hosting' | 'Domains' | 'Tools' | 'Marketing' | 'Other';
+  vendor: string;
+  date: string;
+  recurring: boolean;
+  clientId?: string;
+  projectId?: string;
+  receiptUrl?: string;
+  createdAt: string;
+}
+
+export interface Attachment {
+  id: string;
+  fileName: string;
+  fileUrl: string;
+  fileSize: number;
+  mimeType: string;
+  entityType: 'client' | 'project' | 'contract';
+  entityId: string;
+  uploadedAt: string;
 }

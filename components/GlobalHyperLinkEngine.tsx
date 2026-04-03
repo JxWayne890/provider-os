@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, ArrowUpRight, Package, RefreshCw, Search, Users, Target } from 'lucide-react';
 import { Lead, Client } from '../types';
-import { listStripeProducts, createPaymentLink } from '../services/sheetsService';
+import { listStripeProducts, createPaymentLink } from '../services/dataService';
 
 interface GlobalHyperLinkEngineProps {
     leads: Lead[];
@@ -123,13 +123,13 @@ const GlobalHyperLinkEngine: React.FC<GlobalHyperLinkEngineProps> = ({
 
     // Filtered lists for search
     const filteredLeads = leads.filter(l =>
-        `${l.firstName} ${l.lastName}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        l.company.toLowerCase().includes(searchTerm.toLowerCase())
+        `${l.firstName || ""} ${l.lastName || ""}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (l.company || "").toLowerCase().includes(searchTerm.toLowerCase())
     );
 
     const filteredClients = clients.filter(c =>
-        c.companyName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        c.primaryContact.toLowerCase().includes(searchTerm.toLowerCase())
+        (c.companyName || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (c.primaryContact || "").toLowerCase().includes(searchTerm.toLowerCase())
     );
 
     if (!isOpen) return null;
@@ -137,29 +137,29 @@ const GlobalHyperLinkEngine: React.FC<GlobalHyperLinkEngineProps> = ({
     return (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-black/40 backdrop-blur-xl animate-reveal">
             <div className="w-full max-w-2xl bg-white rounded-[40px] shadow-2xl border border-black/5 overflow-hidden flex flex-col max-h-[90vh]">
-                <div className="p-8 border-b border-[#F5F5F7] flex justify-between items-center bg-[#F5F5F7]/30">
+                <div className="p-8 border-b border-[#F7F8FA] flex justify-between items-center bg-[#F7F8FA]/30">
                     <div className="flex items-center gap-4">
                         <div className="w-12 h-12 bg-[#0066CC] rounded-2xl flex items-center justify-center">
                             <ArrowUpRight size={24} className="text-white" />
                         </div>
                         <div>
-                            <h3 className="text-2xl font-serif font-bold text-[#1D1D1F]">Global Hyper-Link</h3>
-                            <p className="text-[10px] text-[#86868B] font-bold uppercase tracking-widest">
+                            <h3 className="text-2xl font-serif font-bold text-[#1A1A2E]">Global Hyper-Link</h3>
+                            <p className="text-[10px] text-[#64748B] font-bold uppercase tracking-widest">
                                 {linkLead ? `Generating checkout for ${'companyName' in linkLead ? linkLead.companyName : linkLead.company}` : 'Stripe-Powered Sales Intelligence'}
                             </p>
                         </div>
                     </div>
-                    <button onClick={onClose} className="p-2 hover:bg-[#F5F5F7] rounded-xl transition-all">
-                        <Plus size={24} className="rotate-45 text-[#86868B]" />
+                    <button onClick={onClose} className="p-2 hover:bg-[#F7F8FA] rounded-xl transition-all">
+                        <Plus size={24} className="rotate-45 text-[#64748B]" />
                     </button>
                 </div>
 
                 <form onSubmit={handleExecuteLinkCreation} className="p-10 space-y-8 overflow-y-auto">
                     {/* Categorized Lead/Client Picker */}
                     <div className="space-y-4 animate-reveal">
-                        <label className="text-[10px] font-bold text-[#86868B] uppercase tracking-widest ml-1">Select Lead or Client</label>
+                        <label className="text-[10px] font-bold text-[#64748B] uppercase tracking-widest ml-1">Select Lead or Client</label>
                         <div className="relative">
-                            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-[#86868B]">
+                            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-[#64748B]">
                                 <Search size={18} />
                             </div>
                             <input
@@ -167,11 +167,11 @@ const GlobalHyperLinkEngine: React.FC<GlobalHyperLinkEngineProps> = ({
                                 placeholder="Search leads or clients..."
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
-                                className="w-full bg-[#F5F5F7] border border-black/5 rounded-2xl py-4 pl-12 pr-6 text-sm focus:outline-none focus:ring-2 focus:ring-[#0066CC]/10"
+                                className="w-full bg-[#F7F8FA] border border-black/5 rounded-2xl py-4 pl-12 pr-6 text-sm focus:outline-none focus:ring-2 focus:ring-[#0066CC]/10"
                             />
                         </div>
 
-                        <div className="grid grid-cols-1 gap-2 max-h-48 overflow-y-auto p-2 bg-[#F5F5F7]/50 rounded-2xl border border-black/5">
+                        <div className="grid grid-cols-1 gap-2 max-h-48 overflow-y-auto p-2 bg-[#F7F8FA]/50 rounded-2xl border border-black/5">
                             {linkLead ? (
                                 <div className="animate-reveal">
                                     <div className="flex items-center justify-between bg-[#0066CC] text-white px-4 py-2 rounded-xl shadow-md border border-white/10 group">
@@ -197,7 +197,7 @@ const GlobalHyperLinkEngine: React.FC<GlobalHyperLinkEngineProps> = ({
                                 <>
                                     {filteredLeads.length > 0 && (
                                         <div className="space-y-1">
-                                            <div className="text-[9px] font-bold text-[#86868B] uppercase tracking-[0.2em] px-2 py-1 flex items-center gap-2">
+                                            <div className="text-[9px] font-bold text-[#64748B] uppercase tracking-[0.2em] px-2 py-1 flex items-center gap-2">
                                                 <Target size={10} /> Leads
                                             </div>
                                             {filteredLeads.map(l => (
@@ -205,7 +205,7 @@ const GlobalHyperLinkEngine: React.FC<GlobalHyperLinkEngineProps> = ({
                                                     key={l.id}
                                                     type="button"
                                                     onClick={() => setLinkLead(l)}
-                                                    className="w-full text-left px-4 py-2 rounded-xl text-sm transition-all flex items-center justify-between hover:bg-white text-[#1D1D1F]"
+                                                    className="w-full text-left px-4 py-2 rounded-xl text-sm transition-all flex items-center justify-between hover:bg-white text-[#1A1A2E]"
                                                 >
                                                     <span>{l.company} <span className="opacity-60 text-xs ml-2">({l.firstName})</span></span>
                                                     <Plus size={14} className="opacity-0 group-hover:opacity-100" />
@@ -216,7 +216,7 @@ const GlobalHyperLinkEngine: React.FC<GlobalHyperLinkEngineProps> = ({
 
                                     {filteredClients.length > 0 && (
                                         <div className="space-y-1 mt-3">
-                                            <div className="text-[9px] font-bold text-[#86868B] uppercase tracking-[0.2em] px-2 py-1 flex items-center gap-2">
+                                            <div className="text-[9px] font-bold text-[#64748B] uppercase tracking-[0.2em] px-2 py-1 flex items-center gap-2">
                                                 <Users size={10} /> Clients
                                             </div>
                                             {filteredClients.map(c => (
@@ -224,7 +224,7 @@ const GlobalHyperLinkEngine: React.FC<GlobalHyperLinkEngineProps> = ({
                                                     key={c.id}
                                                     type="button"
                                                     onClick={() => setLinkLead(c)}
-                                                    className="w-full text-left px-4 py-2 rounded-xl text-sm transition-all flex items-center justify-between hover:bg-white text-[#1D1D1F]"
+                                                    className="w-full text-left px-4 py-2 rounded-xl text-sm transition-all flex items-center justify-between hover:bg-white text-[#1A1A2E]"
                                                 >
                                                     <span>{c.companyName} <span className="opacity-60 text-xs ml-2">({c.primaryContact})</span></span>
                                                     <Plus size={14} className="opacity-0 group-hover:opacity-100" />
@@ -233,7 +233,7 @@ const GlobalHyperLinkEngine: React.FC<GlobalHyperLinkEngineProps> = ({
                                         </div>
                                     )}
                                     {filteredLeads.length === 0 && filteredClients.length === 0 && (
-                                        <div className="py-4 text-center text-[#86868B] text-[10px] font-bold uppercase tracking-widest">
+                                        <div className="py-4 text-center text-[#64748B] text-[10px] font-bold uppercase tracking-widest">
                                             No matches found
                                         </div>
                                     )}
@@ -248,18 +248,18 @@ const GlobalHyperLinkEngine: React.FC<GlobalHyperLinkEngineProps> = ({
                         </div>
                     )}
 
-                    <div className="flex bg-[#F5F5F7] p-1.5 rounded-2xl">
+                    <div className="flex bg-[#F7F8FA] p-1.5 rounded-2xl">
                         <button
                             type="button"
                             onClick={() => setLinkMode('existing')}
-                            className={`flex-1 py-3 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all ${linkMode === 'existing' ? 'bg-white text-[#1D1D1F] shadow-sm' : 'text-[#86868B]'}`}
+                            className={`flex-1 py-3 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all ${linkMode === 'existing' ? 'bg-white text-[#1A1A2E] shadow-sm' : 'text-[#64748B]'}`}
                         >
                             Existing Product
                         </button>
                         <button
                             type="button"
                             onClick={() => setLinkMode('new')}
-                            className={`flex-1 py-3 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all ${linkMode === 'new' ? 'bg-white text-[#1D1D1F] shadow-sm' : 'text-[#86868B]'}`}
+                            className={`flex-1 py-3 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all ${linkMode === 'new' ? 'bg-white text-[#1A1A2E] shadow-sm' : 'text-[#64748B]'}`}
                         >
                             Custom Offer
                         </button>
@@ -267,14 +267,14 @@ const GlobalHyperLinkEngine: React.FC<GlobalHyperLinkEngineProps> = ({
 
                     {linkMode === 'existing' ? (
                         <div className="space-y-4">
-                            <label className="text-[10px] font-bold text-[#86868B] uppercase tracking-widest ml-1">Select Stripe Product</label>
+                            <label className="text-[10px] font-bold text-[#64748B] uppercase tracking-widest ml-1">Select Stripe Product</label>
                             {isLoadingProducts ? (
-                                <div className="flex items-center justify-center py-8 text-[#86868B]">
+                                <div className="flex items-center justify-center py-8 text-[#64748B]">
                                     <RefreshCw size={24} className="animate-spin opacity-20" />
                                 </div>
                             ) : (
                                 <select
-                                    className="w-full bg-[#F5F5F7] border border-black/5 rounded-2xl py-4 px-6 text-sm appearance-none focus:outline-none focus:ring-2 focus:ring-[#0066CC]/10"
+                                    className="w-full bg-[#F7F8FA] border border-black/5 rounded-2xl py-4 px-6 text-sm appearance-none focus:outline-none focus:ring-2 focus:ring-[#0066CC]/10"
                                     value={selectedPriceId}
                                     onChange={(e) => setSelectedPriceId(e.target.value)}
                                 >
@@ -289,10 +289,10 @@ const GlobalHyperLinkEngine: React.FC<GlobalHyperLinkEngineProps> = ({
                     ) : (
                         <div className="space-y-6 animate-reveal">
                             <div className="space-y-2">
-                                <label className="text-[10px] font-bold text-[#86868B] uppercase tracking-widest ml-1">Product Name</label>
+                                <label className="text-[10px] font-bold text-[#64748B] uppercase tracking-widest ml-1">Product Name</label>
                                 <input
                                     required
-                                    className="w-full bg-[#F5F5F7] border border-black/5 rounded-2xl py-4 px-6 text-sm"
+                                    className="w-full bg-[#F7F8FA] border border-black/5 rounded-2xl py-4 px-6 text-sm"
                                     placeholder="e.g. Q1 Strategy Retainer"
                                     value={newProdName}
                                     onChange={e => setNewProdName(e.target.value)}
@@ -300,19 +300,19 @@ const GlobalHyperLinkEngine: React.FC<GlobalHyperLinkEngineProps> = ({
                             </div>
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-2">
-                                    <label className="text-[10px] font-bold text-[#86868B] uppercase tracking-widest ml-1">Amount ($)</label>
+                                    <label className="text-[10px] font-bold text-[#64748B] uppercase tracking-widest ml-1">Amount ($)</label>
                                     <input
                                         required type="number"
-                                        className="w-full bg-[#F5F5F7] border border-black/5 rounded-2xl py-4 px-6 text-sm"
+                                        className="w-full bg-[#F7F8FA] border border-black/5 rounded-2xl py-4 px-6 text-sm"
                                         placeholder="1500"
                                         value={newProdAmount || ''}
                                         onChange={e => setNewProdAmount(parseFloat(e.target.value))}
                                     />
                                 </div>
                                 <div className="space-y-2">
-                                    <label className="text-[10px] font-bold text-[#86868B] uppercase tracking-widest ml-1">Billing Type</label>
+                                    <label className="text-[10px] font-bold text-[#64748B] uppercase tracking-widest ml-1">Billing Type</label>
                                     <select
-                                        className="w-full bg-[#F5F5F7] border border-black/5 rounded-2xl py-4 px-6 text-sm appearance-none"
+                                        className="w-full bg-[#F7F8FA] border border-black/5 rounded-2xl py-4 px-6 text-sm appearance-none"
                                         value={newProdType}
                                         onChange={e => setNewProdType(e.target.value as any)}
                                     >
@@ -324,8 +324,8 @@ const GlobalHyperLinkEngine: React.FC<GlobalHyperLinkEngineProps> = ({
                         </div>
                     )}
 
-                    <div className="space-y-6 pt-6 border-t border-[#F5F5F7]">
-                        <h4 className="text-xl font-bold text-[#1D1D1F]">Options</h4>
+                    <div className="space-y-6 pt-6 border-t border-[#F7F8FA]">
+                        <h4 className="text-xl font-bold text-[#1A1A2E]">Options</h4>
 
                         <div className="space-y-5">
                             <label className="flex items-center gap-3 cursor-pointer group">
@@ -354,7 +354,7 @@ const GlobalHyperLinkEngine: React.FC<GlobalHyperLinkEngineProps> = ({
                                 <input type="checkbox" checked={collectPhone} onChange={e => setCollectPhone(e.target.checked)} className="w-[18px] h-[18px] rounded border-black/10 text-[#0066CC] focus:ring-0" />
                                 <span className="text-sm font-medium text-[#424245] flex items-center gap-1.5">
                                     Require customers to provide a phone number
-                                    <span className="w-4 h-4 rounded-full bg-[#86868B]/10 flex items-center justify-center text-[10px] text-[#86868B] cursor-help">i</span>
+                                    <span className="w-4 h-4 rounded-full bg-[#64748B]/10 flex items-center justify-center text-[10px] text-[#64748B] cursor-help">i</span>
                                 </span>
                             </label>
 
@@ -363,7 +363,7 @@ const GlobalHyperLinkEngine: React.FC<GlobalHyperLinkEngineProps> = ({
                                     <input type="checkbox" checked={!!paymentLimit} onChange={e => setPaymentLimit(e.target.checked ? '1' : '')} className="w-[18px] h-[18px] rounded border-black/10 text-[#0066CC] focus:ring-0" />
                                     <span className="text-sm font-medium text-[#424245] flex items-center gap-1.5">
                                         Limit the number of payments
-                                        <span className="w-4 h-4 rounded-full bg-[#86868B]/10 flex items-center justify-center text-[10px] text-[#86868B] cursor-help">i</span>
+                                        <span className="w-4 h-4 rounded-full bg-[#64748B]/10 flex items-center justify-center text-[10px] text-[#64748B] cursor-help">i</span>
                                     </span>
                                 </label>
                                 {paymentLimit && (
@@ -372,7 +372,7 @@ const GlobalHyperLinkEngine: React.FC<GlobalHyperLinkEngineProps> = ({
                                             type="number"
                                             value={paymentLimit}
                                             onChange={e => setPaymentLimit(e.target.value)}
-                                            className="w-32 bg-[#F5F5F7] border border-black/5 rounded-xl py-2 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-[#0066CC]/10"
+                                            className="w-32 bg-[#F7F8FA] border border-black/5 rounded-xl py-2 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-[#0066CC]/10"
                                             placeholder="Limit count"
                                         />
                                     </div>
@@ -385,7 +385,7 @@ const GlobalHyperLinkEngine: React.FC<GlobalHyperLinkEngineProps> = ({
                         <button
                             type="button"
                             onClick={() => setIsAdvancedOpen(!isAdvancedOpen)}
-                            className="flex items-center gap-2 text-xl font-bold text-[#1D1D1F] hover:opacity-70 transition-all"
+                            className="flex items-center gap-2 text-xl font-bold text-[#1A1A2E] hover:opacity-70 transition-all"
                         >
                             Advanced options {isAdvancedOpen ? '▾' : '▸'}
                         </button>
@@ -396,7 +396,7 @@ const GlobalHyperLinkEngine: React.FC<GlobalHyperLinkEngineProps> = ({
                                     <input type="checkbox" className="w-[18px] h-[18px] rounded border-black/10 text-[#0066CC] focus:ring-0" />
                                     <span className="text-sm font-medium text-[#424245] flex items-center gap-1.5">
                                         Add custom fields
-                                        <span className="w-4 h-4 rounded-full bg-[#86868B]/10 flex items-center justify-center text-[10px] text-[#86868B] cursor-help">i</span>
+                                        <span className="w-4 h-4 rounded-full bg-[#64748B]/10 flex items-center justify-center text-[10px] text-[#64748B] cursor-help">i</span>
                                     </span>
                                 </label>
 
@@ -404,7 +404,7 @@ const GlobalHyperLinkEngine: React.FC<GlobalHyperLinkEngineProps> = ({
                                     <input type="checkbox" checked={allowPromotionCodes} onChange={e => setAllowPromotionCodes(e.target.checked)} className="w-[18px] h-[18px] rounded border-black/10 text-[#0066CC] focus:ring-0" />
                                     <span className="text-sm font-medium text-[#424245] flex items-center gap-1.5">
                                         Allow promotion codes
-                                        <span className="w-4 h-4 rounded-full bg-[#86868B]/10 flex items-center justify-center text-[10px] text-[#86868B] cursor-help">i</span>
+                                        <span className="w-4 h-4 rounded-full bg-[#64748B]/10 flex items-center justify-center text-[10px] text-[#64748B] cursor-help">i</span>
                                     </span>
                                 </label>
 
@@ -412,7 +412,7 @@ const GlobalHyperLinkEngine: React.FC<GlobalHyperLinkEngineProps> = ({
                                     <input type="checkbox" checked={collectTaxId} onChange={e => setCollectTaxId(e.target.checked)} className="w-[18px] h-[18px] rounded border-black/10 text-[#0066CC] focus:ring-0" />
                                     <span className="text-sm font-medium text-[#424245] flex items-center gap-1.5">
                                         Allow business customers to provide tax IDs
-                                        <span className="w-4 h-4 rounded-full bg-[#86868B]/10 flex items-center justify-center text-[10px] text-[#86868B] cursor-help">i</span>
+                                        <span className="w-4 h-4 rounded-full bg-[#64748B]/10 flex items-center justify-center text-[10px] text-[#64748B] cursor-help">i</span>
                                     </span>
                                 </label>
 
@@ -420,7 +420,7 @@ const GlobalHyperLinkEngine: React.FC<GlobalHyperLinkEngineProps> = ({
                                     <input type="checkbox" checked={savePaymentDetails} onChange={e => setSavePaymentDetails(e.target.checked)} className="w-[18px] h-[18px] rounded border-black/10 text-[#0066CC] focus:ring-0" />
                                     <span className="text-sm font-medium text-[#424245] flex items-center gap-1.5">
                                         Save payment details for future use
-                                        <span className="w-4 h-4 rounded-full bg-[#86868B]/10 flex items-center justify-center text-[10px] text-[#86868B] cursor-help">i</span>
+                                        <span className="w-4 h-4 rounded-full bg-[#64748B]/10 flex items-center justify-center text-[10px] text-[#64748B] cursor-help">i</span>
                                     </span>
                                 </label>
 
@@ -428,7 +428,7 @@ const GlobalHyperLinkEngine: React.FC<GlobalHyperLinkEngineProps> = ({
                                     <input type="checkbox" checked={requireTos} onChange={e => setRequireTos(e.target.checked)} disabled className="w-[18px] h-[18px] rounded border-black/10 text-[#0066CC] focus:ring-0" />
                                     <span className="text-sm font-medium text-[#424245] flex items-center gap-1.5">
                                         Require customers to accept your terms of service
-                                        <span className="w-4 h-4 rounded-full bg-[#86868B]/10 flex items-center justify-center text-[10px] text-[#86868B] cursor-help">i</span>
+                                        <span className="w-4 h-4 rounded-full bg-[#64748B]/10 flex items-center justify-center text-[10px] text-[#64748B] cursor-help">i</span>
                                     </span>
                                 </label>
 
@@ -437,13 +437,13 @@ const GlobalHyperLinkEngine: React.FC<GlobalHyperLinkEngineProps> = ({
                                         <select
                                             value={submitType}
                                             onChange={e => setSubmitType(e.target.value as any)}
-                                            className="appearance-none bg-white border border-black/10 rounded-lg py-1.5 pl-3 pr-8 text-sm font-semibold text-[#1D1D1F] focus:outline-none focus:ring-2 focus:ring-[#0066CC]/10"
+                                            className="appearance-none bg-white border border-black/10 rounded-lg py-1.5 pl-3 pr-8 text-sm font-semibold text-[#1A1A2E] focus:outline-none focus:ring-2 focus:ring-[#0066CC]/10"
                                         >
                                             <option value="pay">Pay</option>
                                             <option value="book">Book</option>
                                             <option value="donate">Donate</option>
                                         </select>
-                                        <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-[#86868B]">
+                                        <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-[#64748B]">
                                             <svg width="10" height="6" viewBox="0 0 10 6" fill="none" xmlns="http://www.w3.org/2000/svg">
                                                 <path d="M1 1L5 5L9 1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                                             </svg>

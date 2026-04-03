@@ -34,8 +34,8 @@ const RelationshipHub: React.FC<RelationshipHubProps> = ({
                     <button
                         onClick={() => setView('pipeline')}
                         className={`flex-1 md:flex-none flex items-center justify-center gap-2 md:gap-3 px-4 md:px-8 py-3 rounded-2xl text-sm font-bold transition-all ${view === 'pipeline'
-                            ? 'bg-white text-[#B8860B] shadow-lg shadow-black/5'
-                            : 'text-[#86868B] hover:text-[#1D1D1F]'
+                            ? 'bg-white text-[#FF9F1C] shadow-lg shadow-black/5'
+                            : 'text-[#64748B] hover:text-[#1A1A2E]'
                             }`}
                     >
                         <Target size={18} />
@@ -44,8 +44,8 @@ const RelationshipHub: React.FC<RelationshipHubProps> = ({
                     <button
                         onClick={() => setView('portfolio')}
                         className={`flex-1 md:flex-none flex items-center justify-center gap-2 md:gap-3 px-4 md:px-8 py-3 rounded-2xl text-sm font-bold transition-all ${view === 'portfolio'
-                            ? 'bg-white text-[#B8860B] shadow-lg shadow-black/5'
-                            : 'text-[#86868B] hover:text-[#1D1D1F]'
+                            ? 'bg-white text-[#FF9F1C] shadow-lg shadow-black/5'
+                            : 'text-[#64748B] hover:text-[#1A1A2E]'
                             }`}
                     >
                         <Users size={18} />
@@ -56,10 +56,10 @@ const RelationshipHub: React.FC<RelationshipHubProps> = ({
 
             {/* Sub-Header Context Description */}
             <div className="text-center pb-4">
-                <h2 className="text-3xl font-serif font-bold text-[#1D1D1F] tracking-tight">
+                <h2 className="text-3xl font-serif font-bold text-[#1A1A2E] tracking-tight">
                     {view === 'pipeline' ? 'Lead Generation Intelligence' : 'Global Partnership Portfolio'}
                 </h2>
-                <p className="text-[#86868B] mt-2 font-medium tracking-wide uppercase text-[10px]">
+                <p className="text-[#64748B] mt-2 font-medium tracking-wide uppercase text-[10px]">
                     {view === 'pipeline'
                         ? `Managing ${leads.length} Active Prospects`
                         : `Managing ${clients.length} High-Value Partnerships`}

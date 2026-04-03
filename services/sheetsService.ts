@@ -300,3 +300,76 @@ export const createPaymentLink = async (options: {
         throw e;
     }
 };
+
+/**
+ * Lists active Stripe Payment Links.
+ */
+export const listPaymentLinks = async () => {
+    try {
+        const response = await fetch(RELAY_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'list_payment_links' })
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            return data.links || [];
+        }
+        throw new Error("Failed to fetch payment links");
+    } catch (e) {
+        console.error("Error listing payment links:", e);
+        return [];
+    }
+};
+
+/**
+ * EMAIL ACTIONS (via Resend Relay)
+ */
+export const sendEmail = async (to: string, subject: string, html: string) => {
+    try {
+        const response = await fetch(RELAY_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                action: 'send_email',
+                to,
+                subject,
+                html
+            })
+        });
+
+        if (response.ok) {
+            const result = await response.json();
+            return result;
+        }
+        throw new Error("Failed to send email via Relay");
+    } catch (e) {
+        console.error("Email Relay Error:", e);
+        throw e;
+    }
+};
+
+export const sendContractEmail = async (to: string, recipientName: string, contractTitle: string, signingLink: string) => {
+    const subject = `Signature Required: ${contractTitle}`;
+    const html = `
+      <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+        <h2 style="color: #1D1D1F;">Review & Sign Document</h2>
+        <p>Hello ${recipientName},</p>
+        <p>You have been sent a document for digital signature.</p>
+        
+        <div style="background-color: #F5F5F7; padding: 20px; border-radius: 10px; margin: 20px 0;">
+          <strong>${contractTitle}</strong>
+        </div>
+
+        <p>Please click the button below to review and sign:</p>
+        <a href="${signingLink}" style="display: inline-block; background-color: #1D1D1F; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold;">Review & Sign</a>
+        
+        <p style="margin-top: 30px; color: #888; font-size: 12px;">
+          Link not working? Copy this URL:<br/>
+          ${signingLink}
+        </p>
+      </div>
+    `;
+    return sendEmail(to, subject, html);
+};
