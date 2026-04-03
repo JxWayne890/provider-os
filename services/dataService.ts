@@ -1086,6 +1086,45 @@ export async function streamAllCampaignLeads(onPage: (leads: CampaignLead[], tot
     from += PAGE_SIZE;
   }
 }
+// --- Stream from standalone leads table ---
+const rowToLeadAsCampaignLead = (r: any): CampaignLead => ({
+  id: r.id, campaignId: r.campaign_id || '', email: r.email,
+  companyName: r.company_name || '', city: r.city || '', state: r.state || '',
+  country: r.country || '', website: r.website || '',
+  verificationStatus: 'unknown',
+  sendStatus: 'queued' as any,
+  engagementScore: 0,
+  sentAt: undefined, openedAt: undefined, clickedAt: undefined,
+  repliedAt: undefined, bouncedAt: undefined, errorMessage: undefined,
+  createdAt: r.created_at,
+  websiteStatus: r.website_status || 'pending',
+  websiteScore: Number(r.website_score) || 0,
+  websiteAnalysis: r.website_analysis || {},
+  personalizedSubject: undefined,
+  personalizedBody: undefined,
+  personalizationStatus: 'pending' as any,
+  researchCompletedAt: r.research_completed_at,
+  priorityRank: 0,
+  emailStatus: r.email_status,
+  emailValid: r.email_valid,
+  emailVerification: r.email_verification || undefined,
+});
+
+export async function streamLeads(onPage: (leads: CampaignLead[], total: number) => void): Promise<void> {
+  const PAGE_SIZE = 1000;
+  let allRows: any[] = [];
+  let from = 0;
+  while (true) {
+    const { data, error } = await supabase.from('leads').select('*').order('website_score', { ascending: false }).range(from, from + PAGE_SIZE - 1);
+    if (error) { console.error('streamLeads error:', error); break; }
+    if (!data || data.length === 0) break;
+    allRows = allRows.concat(data);
+    onPage(allRows.map(rowToLeadAsCampaignLead), allRows.length);
+    if (data.length < PAGE_SIZE) break;
+    from += PAGE_SIZE;
+  }
+}
+
 // --- Engagement Score Calculator ---
 
 export function calculateEngagementScore(lead: CampaignLead): number {

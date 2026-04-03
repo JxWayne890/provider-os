@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Search, Globe, ExternalLink, ChevronDown, ChevronUp, X, ShieldAlert, Smartphone, FileCode, Clock, AlertTriangle, CheckCircle, XCircle, Play, Pause, Loader2 } from 'lucide-react';
 import { CampaignLead, Campaign, SendStatus } from '../types';
-import { fetchCampaigns, calculateResearchStats, streamAllCampaignLeads } from '../services/dataService';
+import { fetchCampaigns, calculateResearchStats, streamLeads } from '../services/dataService';
 import ReactDOM from 'react-dom';
 import LeadScoreBar from './LeadScoreBar';
 import { useResearch } from './ResearchContext';
@@ -34,7 +34,7 @@ const LeadDatabase: React.FC = () => {
     const allCampaigns = await fetchCampaigns();
     setCampaigns(allCampaigns);
     setLoading(false);
-    await streamAllCampaignLeads((partialLeads) => setLeads(partialLeads));
+    await streamLeads((partialLeads) => setLeads(partialLeads));
   };
 
   // Auto-select campaign with most pending leads
