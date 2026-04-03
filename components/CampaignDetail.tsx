@@ -8,7 +8,6 @@ import {
 import CSVImporter from './CSVImporter';
 import EmailTemplateEditor from './EmailTemplateEditor';
 import CampaignScheduler from './CampaignScheduler';
-import WebsiteResearchPanel from './WebsiteResearchPanel';
 import PersonalizationPanel from './PersonalizationPanel';
 import LeadScoreBar from './LeadScoreBar';
 
@@ -21,7 +20,6 @@ interface CampaignDetailProps {
 const SECTIONS = [
   { id: 'leads', label: 'Leads', icon: Users },
   { id: 'import', label: 'Import', icon: Upload },
-  { id: 'research', label: 'Research', icon: Search },
   { id: 'personalize', label: 'AI Copy', icon: Sparkles },
   { id: 'template', label: 'Template', icon: Mail },
   { id: 'schedule', label: 'Schedule', icon: SettingsIcon },
@@ -93,7 +91,6 @@ const CampaignDetail: React.FC<CampaignDetailProps> = ({ campaign, onBack, onUpd
   else if (sortBy === 'priority') filteredLeads = [...filteredLeads].sort((a, b) => a.priorityRank - b.priorityRank);
 
   const sampleLead = leads.length > 0 ? leads[Math.floor(Math.random() * leads.length)] : undefined;
-  const researchedCount = leads.filter(l => l.websiteStatus !== 'pending').length;
   const personalizedCount = leads.filter(l => l.personalizationStatus === 'done').length;
 
   return (
@@ -119,7 +116,6 @@ const CampaignDetail: React.FC<CampaignDetailProps> = ({ campaign, onBack, onUpd
                 'bg-gray-50 text-[#64748B] border border-[#E2E8F0]'
               }`}>{campaign.status}</span>
               <span className="text-xs text-[#94A3B8]">{leads.length} leads</span>
-              <span className="text-xs text-[#94A3B8]">{researchedCount} researched</span>
               <span className="text-xs text-[#94A3B8]">{personalizedCount} personalized</span>
               <span className="text-xs text-[#94A3B8]">{stats.sent} sent</span>
             </div>
@@ -225,8 +221,6 @@ const CampaignDetail: React.FC<CampaignDetailProps> = ({ campaign, onBack, onUpd
                       <tr className="border-b border-[#E2E8F0]">
                         <th className="text-left py-2 px-2 text-[#94A3B8] font-medium">Email</th>
                         <th className="text-left py-2 px-2 text-[#94A3B8] font-medium">Company</th>
-                        <th className="text-left py-2 px-2 text-[#94A3B8] font-medium">Score</th>
-                        <th className="text-left py-2 px-2 text-[#94A3B8] font-medium">Web</th>
                         <th className="text-left py-2 px-2 text-[#94A3B8] font-medium">AI</th>
                         <th className="text-left py-2 px-2 text-[#94A3B8] font-medium">Status</th>
                         <th className="text-left py-2 px-2 text-[#94A3B8] font-medium">Sent</th>
@@ -238,12 +232,6 @@ const CampaignDetail: React.FC<CampaignDetailProps> = ({ campaign, onBack, onUpd
                           <tr className="border-b border-[#E2E8F0]/50 hover:bg-[#F7F8FA] cursor-pointer" onClick={() => setExpandedLead(expandedLead === lead.id ? null : lead.id)}>
                             <td className="py-2 px-2 text-[#1A1A2E] font-medium">{lead.email}</td>
                             <td className="py-2 px-2 text-[#475569]">{lead.companyName}</td>
-                            <td className="py-2 px-2"><LeadScoreBar score={lead.websiteScore} /></td>
-                            <td className="py-2 px-2">
-                              <span className={`text-[10px] font-semibold ${lead.websiteStatus === 'crawled' ? 'text-emerald-600' : lead.websiteStatus === 'no_website' ? 'text-red-500' : lead.websiteStatus === 'error' ? 'text-red-400' : lead.websiteStatus === 'crawling' ? 'text-amber-500' : 'text-[#CBD5E1]'}`}>
-                                {lead.websiteStatus === 'pending' ? '—' : lead.websiteStatus === 'crawled' ? 'Done' : lead.websiteStatus === 'no_website' ? 'None' : lead.websiteStatus === 'crawling' ? '...' : 'Err'}
-                              </span>
-                            </td>
                             <td className="py-2 px-2">
                               <span className={`text-[10px] font-semibold ${lead.personalizationStatus === 'done' ? 'text-[#FF9F1C]' : lead.personalizationStatus === 'generating' ? 'text-amber-500' : lead.personalizationStatus === 'error' ? 'text-red-400' : 'text-[#CBD5E1]'}`}>
                                 {lead.personalizationStatus === 'done' ? 'Ready' : lead.personalizationStatus === 'generating' ? '...' : lead.personalizationStatus === 'error' ? 'Err' : '—'}
@@ -266,13 +254,12 @@ const CampaignDetail: React.FC<CampaignDetailProps> = ({ campaign, onBack, onUpd
                             <tr><td colSpan={7} className="p-3 bg-[#F7F8FA]">
                               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div>
-                                  <p className="text-[10px] font-bold text-[#94A3B8] uppercase mb-1">Website Analysis</p>
-                                  {lead.websiteAnalysis && 'overallAssessment' in lead.websiteAnalysis ? (
-                                    <div className="space-y-1 text-xs text-[#475569]">
-                                      <p>{(lead.websiteAnalysis as any).overallAssessment}</p>
-                                      {((lead.websiteAnalysis as any).keyFindings || []).map((f: string, i: number) => <p key={i} className="text-[#64748B]">• {f}</p>)}
-                                    </div>
-                                  ) : <p className="text-xs text-[#94A3B8]">Not yet researched</p>}
+                                  <p className="text-[10px] font-bold text-[#94A3B8] uppercase mb-1">Lead Details</p>
+                                  <div className="space-y-1 text-xs text-[#475569]">
+                                    <p>City: {lead.city || '—'}</p>
+                                    <p>State: {lead.state || '—'}</p>
+                                    <p>Website: {lead.website || '—'}</p>
+                                  </div>
                                 </div>
                                 <div>
                                   <p className="text-[10px] font-bold text-[#94A3B8] uppercase mb-1">Personalized Email</p>
@@ -306,13 +293,6 @@ const CampaignDetail: React.FC<CampaignDetailProps> = ({ campaign, onBack, onUpd
             </div>
           </div>
 
-          {/* Section: Research */}
-          <div ref={el => { sectionRefs.current['research'] = el; }} className="scroll-mt-24">
-            <h2 className="text-lg font-serif font-bold text-[#0B3060] mb-4 flex items-center gap-2">
-              <Search size={18} /> Website Research
-            </h2>
-            <WebsiteResearchPanel campaignId={campaign.id} campaignName={campaign.name} leads={leads} onRefresh={loadLeads} />
-          </div>
 
           {/* Section: Personalize */}
           <div ref={el => { sectionRefs.current['personalize'] = el; }} className="scroll-mt-24">

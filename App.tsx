@@ -134,7 +134,6 @@ const App: React.FC = () => {
   }
 
   return (
-    <ResearchProvider>
     <div className="flex h-screen bg-[#F7F8FA] text-[#1A1A2E] overflow-hidden font-sans">
       {/* Navy Sidebar (Desktop) */}
       <aside className="w-64 bg-[#0B3060] hidden lg:flex flex-col z-20 overflow-y-auto">
@@ -331,10 +330,7 @@ const App: React.FC = () => {
       )}
 
       <GlobalHyperLinkEngine isOpen={activeModal === 'payment_link'} onClose={() => setActiveModal(null)} leads={leads} clients={clients} />
-
-      <FloatingResearchPill />
     </div>
-    </ResearchProvider>
   );
 };
 

@@ -4,7 +4,6 @@ import { CampaignLead, Campaign, SendStatus } from '../types';
 import { fetchCampaigns, calculateResearchStats, streamAllCampaignLeads } from '../services/dataService';
 import ReactDOM from 'react-dom';
 import LeadScoreBar from './LeadScoreBar';
-import { useResearch } from './ResearchContext';
 
 const BATCH_SIZES = [10, 25, 50, 100, 250, 500];
 const PAGE_SIZE = 50;
@@ -23,10 +22,6 @@ const LeadDatabase: React.FC = () => {
   const [page, setPage] = useState(0);
   const [verifying, setVerifying] = useState(false);
   const [batchSize, setBatchSize] = useState(50);
-  const [researchCampaignId, setResearchCampaignId] = useState<string>('');
-
-  const research = useResearch();
-  const running = research.isRunning;
 
   useEffect(() => { loadData(); }, []);
 
@@ -37,49 +32,9 @@ const LeadDatabase: React.FC = () => {
     await streamAllCampaignLeads((partialLeads) => setLeads(partialLeads));
   };
 
-  // Auto-select campaign with most pending leads
-  useEffect(() => {
-    if (campaigns.length > 0 && !researchCampaignId) {
-      const best = campaigns.reduce((b, c) => {
-        const p = leads.filter(l => l.campaignId === c.id && l.websiteStatus === 'pending').length;
-        const bp = leads.filter(l => l.campaignId === b.id && l.websiteStatus === 'pending').length;
-        return p > bp ? c : b;
-      }, campaigns[0]);
-      setResearchCampaignId(best.id);
-    }
-  }, [campaigns, leads, researchCampaignId]);
 
-  // Auto-refresh while research runs
-  useEffect(() => {
-    if (!running) return;
-    const iv = setInterval(() => loadData(), 3000);
-    return () => clearInterval(iv);
-  }, [running]);
 
-  const startResearch = () => {
-    if (!researchCampaignId) return;
-    const campaign = campaigns.find(c => c.id === researchCampaignId);
-    if (campaign) research.startResearch(researchCampaignId, campaign.name, batchSize);
-  };
 
-  const verifyEmails = async () => {
-    if (!researchCampaignId) return;
-    setVerifying(true);
-    try {
-      const token = localStorage.getItem('relay_auth_token') || '';
-      const relayUrl = (import.meta as any).env?.VITE_RELAY_URL || 'https://api.theprovidersystem.com';
-      const resp = await fetch(relayUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
-        body: JSON.stringify({ action: 'verify_emails_batch', campaign_id: researchCampaignId, batch_size: 500 }),
-      });
-      const data = await resp.json();
-      if (data.success) {
-        setTimeout(() => loadData(), 3000);
-        setTimeout(() => { loadData(); setVerifying(false); }, 8000);
-      } else setVerifying(false);
-    } catch { setVerifying(false); }
-  };
 
   const campaignMap = useMemo(() => {
     const m: Record<string, string> = {};
@@ -87,8 +42,6 @@ const LeadDatabase: React.FC = () => {
     return m;
   }, [campaigns]);
 
-  const stats = useMemo(() => calculateResearchStats(leads), [leads]);
-  const progress = stats.total > 0 ? ((stats.total - stats.pending) / stats.total) * 100 : 0;
 
   const filtered = useMemo(() => {
     let result = leads;
@@ -153,13 +106,12 @@ const LeadDatabase: React.FC = () => {
       </header>
 
       {/* 2. KPI Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
           { label: 'Total Leads', value: leads.length.toLocaleString(), color: 'text-[#0B3060]' },
-          { label: 'Researched', value: (stats.total - stats.pending).toLocaleString(), color: 'text-blue-600' },
-          { label: 'Hot (9-10)', value: leads.filter(l => l.websiteScore >= 9).length.toLocaleString(), color: 'text-emerald-600' },
-          { label: 'Avg Score', value: stats.avgScore.toFixed(1), color: 'text-[#FF9F1C]' },
+          { label: 'Hot Leads', value: leads.filter(l => l.engagementScore >= 10).length.toLocaleString(), color: 'text-emerald-600' },
           { label: 'Valid Emails', value: leads.filter(l => l.emailValid).length.toLocaleString(), color: 'text-purple-600' },
+          { label: 'Avg Engagement', value: (leads.reduce((sum, l) => sum + (l.engagementScore || 0), 0) / (leads.length || 1)).toFixed(1), color: 'text-[#FF9F1C]' },
         ].map(kpi => (
           <div key={kpi.label} className="bg-white border border-[#E2E8F0] rounded-xl p-4">
             <p className={`text-2xl font-bold ${kpi.color}`}>{kpi.value}</p>
@@ -168,81 +120,7 @@ const LeadDatabase: React.FC = () => {
         ))}
       </div>
 
-      {/* 3. Research Toolbar */}
-      <div className="bg-white border border-[#E2E8F0] rounded-xl px-4 py-3">
-        <div className="flex flex-col md:flex-row items-start md:items-center gap-3">
-          <div className="flex items-center gap-2 flex-wrap flex-1">
-            <select value={researchCampaignId} onChange={e => setResearchCampaignId(e.target.value)}
-              className="text-xs bg-[#F7F8FA] border border-[#E2E8F0] rounded-lg px-3 py-2 outline-none font-medium text-[#1A1A2E]">
-              {campaigns.map(c => (
-                <option key={c.id} value={c.id}>{c.name} ({leads.filter(l => l.campaignId === c.id && l.websiteStatus === 'pending').length} pending)</option>
-              ))}
-            </select>
-            <select value={batchSize} onChange={e => setBatchSize(Number(e.target.value))}
-              className="text-xs bg-[#F7F8FA] border border-[#E2E8F0] rounded-lg px-2 py-2 outline-none font-medium text-[#1A1A2E] w-28">
-              {BATCH_SIZES.map(s => <option key={s} value={s}>{s} per batch</option>)}
-            </select>
-            {!running ? (
-              <button onClick={startResearch} disabled={!researchCampaignId}
-                className="flex items-center gap-1.5 px-3 py-2 bg-[#0B3060] text-white rounded-lg text-xs font-bold hover:bg-[#0a2850] transition-all disabled:opacity-50">
-                <Play size={12} /> Research
-              </button>
-            ) : (
-              <button onClick={research.stopResearch}
-                className="flex items-center gap-1.5 px-3 py-2 bg-amber-500 text-white rounded-lg text-xs font-bold hover:bg-amber-600 transition-all">
-                <Pause size={12} /> Stop
-              </button>
-            )}
-            <button onClick={verifyEmails} disabled={verifying || running || !researchCampaignId}
-              className="flex items-center gap-1.5 px-3 py-2 bg-emerald-600 text-white rounded-lg text-xs font-bold hover:bg-emerald-700 transition-all disabled:opacity-50">
-              {verifying ? <Loader2 size={12} className="animate-spin" /> : <CheckCircle size={12} />}
-              {verifying ? 'Verifying...' : 'Verify Emails'}
-            </button>
-          </div>
-          {/* Inline email stats */}
-          {leads.some(l => l.emailStatus) && (
-            <div className="flex gap-3 flex-shrink-0">
-              <span className="flex items-center gap-1 text-[10px]"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span><span className="text-emerald-700 font-semibold">{leads.filter(l => l.emailValid).length} valid</span></span>
-              <span className="flex items-center gap-1 text-[10px]"><span className="w-1.5 h-1.5 rounded-full bg-red-500"></span><span className="text-red-600 font-semibold">{leads.filter(l => l.emailStatus && !l.emailValid).length} bad</span></span>
-              <span className="flex items-center gap-1 text-[10px]"><span className="w-1.5 h-1.5 rounded-full bg-gray-300"></span><span className="text-gray-500">{leads.filter(l => !l.emailStatus).length} unchecked</span></span>
-            </div>
-          )}
-        </div>
-        {/* Progress bar — only when running */}
-        {running && (
-          <div className="mt-2">
-            <div className="w-full bg-gray-100 rounded-full h-2 overflow-hidden">
-              <div className="bg-[#FF9F1C] h-full rounded-full transition-all duration-500 relative" style={{ width: `${Math.max(progress, 1)}%` }}>
-                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-pulse" />
-              </div>
-            </div>
-            <p className="text-[10px] text-[#94A3B8] mt-1">{stats.pending} remaining · {progress.toFixed(0)}% complete</p>
-          </div>
-        )}
-      </div>
 
-      {/* 4. Score Distribution Cards */}
-      <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
-        {[
-          { range: '10-10', label: 'No Website', count: leads.filter(l => l.websiteScore === 10).length, color: 'bg-emerald-500', desc: 'Biggest opportunity' },
-          { range: '8-9', label: 'Major Issues', count: leads.filter(l => l.websiteScore >= 8 && l.websiteScore <= 9).length, color: 'bg-emerald-400', desc: 'Website broken/down' },
-          { range: '6-7', label: 'Needs Work', count: leads.filter(l => l.websiteScore >= 6 && l.websiteScore <= 7).length, color: 'bg-amber-400', desc: 'Multiple SEO issues' },
-          { range: '4-5', label: 'Decent', count: leads.filter(l => l.websiteScore >= 4 && l.websiteScore <= 5).length, color: 'bg-blue-400', desc: 'Missing city pages' },
-          { range: '1-3', label: 'Good Site', count: leads.filter(l => l.websiteScore >= 1 && l.websiteScore <= 3).length, color: 'bg-gray-400', desc: 'Already optimized' },
-          { range: '0-0', label: 'Pending', count: leads.filter(l => l.websiteScore === 0 && l.websiteStatus === 'pending').length, color: 'bg-gray-200', desc: 'Not researched' },
-        ].map(d => (
-          <button key={d.range}
-            onClick={() => { setScoreFilter(scoreFilter === d.range ? 'all' : d.range); setPage(0); }}
-            className={`p-3 rounded-xl text-left transition-all ${scoreFilter === d.range ? 'ring-2 ring-[#0B3060] bg-[#0B3060]/5' : 'bg-white border border-[#E2E8F0] hover:bg-gray-50'}`}>
-            <div className="flex items-center gap-2">
-              <span className={`w-2.5 h-2.5 rounded-full ${d.color}`}></span>
-              <span className="text-lg font-bold text-[#0B3060]">{d.count}</span>
-            </div>
-            <p className="text-[10px] font-bold text-[#64748B] mt-1">{d.label}</p>
-            <p className="text-[9px] text-[#94A3B8]">{d.desc}</p>
-          </button>
-        ))}
-      </div>
 
       {/* 5. Search + Filters */}
       <div className="flex flex-col md:flex-row gap-3">
@@ -265,11 +143,6 @@ const LeadDatabase: React.FC = () => {
             <option value="all">All Campaigns</option>
             {campaigns.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
-          {scoreFilter !== 'all' && (
-            <button onClick={() => setScoreFilter('all')} className="text-xs px-3 py-2.5 bg-[#0B3060] text-white rounded-lg font-bold flex items-center gap-1">
-              Score: {scoreFilter} <X size={12} />
-            </button>
-          )}
         </div>
       </div>
 
@@ -289,8 +162,8 @@ const LeadDatabase: React.FC = () => {
                 </th>
                 <th className="text-left py-3 px-3 text-[#64748B] font-semibold">Email</th>
                 <th className="text-left py-3 px-3 text-[#64748B] font-semibold">Location</th>
-                <th className="text-left py-3 px-3 text-[#64748B] font-semibold cursor-pointer hover:text-[#0B3060]" onClick={() => toggleSort('score')}>
-                  <span className="flex items-center gap-1">Score <SortIcon field="score" /></span>
+                <th className="text-left py-3 px-3 text-[#64748B] font-semibold cursor-pointer hover:text-[#0B3060]" onClick={() => toggleSort('company')}>
+                  <span className="flex items-center gap-1">Company <SortIcon field="company" /></span>
                 </th>
                 <th className="text-left py-3 px-3 text-[#64748B] font-semibold">Website</th>
                 <th className="text-left py-3 px-3 text-[#64748B] font-semibold">Email</th>
@@ -307,7 +180,6 @@ const LeadDatabase: React.FC = () => {
                   <td className="py-2.5 px-3"><p className="font-semibold text-[#1A1A2E]">{lead.companyName || '—'}</p></td>
                   <td className="py-2.5 px-3 text-[#475569]">{lead.email}</td>
                   <td className="py-2.5 px-3 text-[#64748B]">{[lead.city, lead.state].filter(Boolean).join(', ') || '—'}</td>
-                  <td className="py-2.5 px-3"><LeadScoreBar score={lead.websiteScore} showLabel /></td>
                   <td className="py-2.5 px-3">
                     {lead.website ? <span className="text-[#64748B] truncate block max-w-[140px]">{lead.website.replace(/^https?:\/\//, '').replace(/\/$/, '')}</span>
                       : <span className="text-[#CBD5E1]">None</span>}
@@ -377,19 +249,11 @@ const LeadDatabase: React.FC = () => {
                     </div>
                     <button onClick={() => setSelectedLead(null)} className="p-2 hover:bg-white/10 rounded-xl transition-all"><X size={20} /></button>
                   </div>
-                  <div className="flex items-center gap-4 mt-4">
-                    <div className={`text-3xl font-bold ${selectedLead.websiteScore >= 9 ? 'text-emerald-400' : selectedLead.websiteScore >= 7 ? 'text-amber-400' : selectedLead.websiteScore >= 5 ? 'text-blue-400' : 'text-gray-400'}`}>
-                      {selectedLead.websiteScore}/10
-                    </div>
-                    <div className="text-sm text-white/60">
-                      {selectedLead.websiteScore >= 9 ? 'Highest Priority — No website or unreachable' :
-                       selectedLead.websiteScore >= 7 ? 'High Priority — Major website issues' :
-                       selectedLead.websiteScore >= 5 ? 'Medium Priority — Missing SEO/city pages' :
-                       selectedLead.websiteScore >= 3 ? 'Lower Priority — Decent website' : 'Low Priority — Good website'}
-                    </div>
+                  <div className="flex items-center gap-4 mt-2 text-xs text-white/60">
+                    <div>Engagement Score: <span className="font-bold text-white">{selectedLead.engagementScore}</span></div>
+                    <div>Sent: <span className="font-bold text-white">{selectedLead.sentAt ? new Date(selectedLead.sentAt).toLocaleDateString() : 'No'}</span></div>
                   </div>
                 </div>
-
                 <div className="p-6 space-y-5">
                   {/* Website URL */}
                   <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
@@ -422,70 +286,6 @@ const LeadDatabase: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* Assessment */}
-                  {a.overallAssessment && (
-                    <div className="p-4 bg-[#FF9F1C]/5 border border-[#FF9F1C]/10 rounded-xl">
-                      <h4 className="text-xs font-bold text-[#FF9F1C] uppercase tracking-wider mb-1">Assessment</h4>
-                      <p className="text-sm text-[#0B3060]">{a.overallAssessment}</p>
-                    </div>
-                  )}
-
-                  {/* Quick stats */}
-                  {a.hasWebsite && (
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                      {[
-                        { label: 'SSL', value: a.hasSSL ? 'Secure' : 'Not Secure', ok: a.hasSSL, icon: ShieldAlert },
-                        { label: 'Mobile', value: a.isMobileResponsive ? 'Responsive' : 'Not Responsive', ok: a.isMobileResponsive, icon: Smartphone },
-                        { label: 'Schema', value: a.hasSchemaMarkup ? 'Has Schema' : 'No Schema', ok: a.hasSchemaMarkup, icon: FileCode },
-                        { label: 'Speed', value: a.loadTimeMs ? `${(a.loadTimeMs / 1000).toFixed(1)}s` : 'N/A', ok: (a.loadTimeMs || 0) < 3000, icon: Clock },
-                      ].map(stat => (
-                        <div key={stat.label} className="p-3 bg-gray-50 rounded-xl text-center">
-                          <stat.icon size={16} className={`mx-auto mb-1 ${stat.ok ? 'text-emerald-500' : 'text-red-400'}`} />
-                          <p className="text-[10px] font-bold text-[#94A3B8] uppercase">{stat.label}</p>
-                          <p className={`text-xs font-bold ${stat.ok ? 'text-emerald-600' : 'text-red-500'}`}>{stat.value}</p>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Tech + City Pages */}
-                  {a.hasWebsite && (
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="p-3 bg-gray-50 rounded-xl">
-                        <h4 className="text-xs font-bold text-[#64748B] uppercase mb-2">Tech Stack</h4>
-                        {techStack.length > 0 ? (
-                          <div className="flex flex-wrap gap-1">{techStack.map((t: string, i: number) => (
-                            <span key={i} className="px-2 py-0.5 bg-white border border-gray-200 rounded-md text-[10px] font-medium text-[#0B3060]">{t}</span>
-                          ))}</div>
-                        ) : <p className="text-xs text-[#94A3B8]">Unknown</p>}
-                      </div>
-                      <div className="p-3 bg-gray-50 rounded-xl">
-                        <h4 className="text-xs font-bold text-[#64748B] uppercase mb-2">City/Service Pages</h4>
-                        <p className={`text-xs font-bold ${a.cityServicePages ? 'text-emerald-600' : 'text-red-500'}`}>{a.cityServicePages ? 'Found' : 'Not detected'}</p>
-                        <p className="text-[10px] text-[#94A3B8] mt-1">Est. {a.estimatedPageCount || '?'} pages</p>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* SEO Issues */}
-                  {seoIssues.length > 0 && (
-                    <div className="p-4 bg-red-50/50 border border-red-100 rounded-xl">
-                      <h4 className="text-xs font-bold text-red-600 uppercase tracking-wider mb-2 flex items-center gap-1.5"><AlertTriangle size={14} /> SEO Issues ({seoIssues.length})</h4>
-                      <ul className="space-y-1.5">{seoIssues.map((issue: string, i: number) => (
-                        <li key={i} className="text-sm text-[#0B3060] flex items-start gap-2"><XCircle size={12} className="text-red-400 mt-0.5 flex-shrink-0" />{issue}</li>
-                      ))}</ul>
-                    </div>
-                  )}
-
-                  {/* Key Findings */}
-                  {keyFindings.length > 0 && (
-                    <div className="p-4 bg-blue-50/50 border border-blue-100 rounded-xl">
-                      <h4 className="text-xs font-bold text-blue-600 uppercase tracking-wider mb-2">Key Findings</h4>
-                      <ul className="space-y-1.5">{keyFindings.map((f: string, i: number) => (
-                        <li key={i} className="text-sm text-[#0B3060] flex items-start gap-2"><CheckCircle size={12} className="text-blue-500 mt-0.5 flex-shrink-0" />{f}</li>
-                      ))}</ul>
-                    </div>
-                  )}
 
                   {/* Personalized Email */}
                   {selectedLead.personalizedSubject && (
