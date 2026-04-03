@@ -22,6 +22,10 @@ const LeadDatabase: React.FC = () => {
   const [page, setPage] = useState(0);
   const [verifying, setVerifying] = useState(false);
   const [batchSize, setBatchSize] = useState(50);
+  const [researchCampaignId, setResearchCampaignId] = useState<string>('');
+
+  const research = useResearch();
+  const running = research.isRunning;
 
   useEffect(() => { loadData(); }, []);
 
@@ -30,6 +34,50 @@ const LeadDatabase: React.FC = () => {
     setCampaigns(allCampaigns);
     setLoading(false);
     await streamAllCampaignLeads((partialLeads) => setLeads(partialLeads));
+  };
+
+  // Auto-select campaign with most pending leads
+  useEffect(() => {
+    if (campaigns.length > 0 && !researchCampaignId) {
+      const best = campaigns.reduce((b, c) => {
+        const p = leads.filter(l => l.campaignId === c.id && l.websiteStatus === 'pending').length;
+        const bp = leads.filter(l => l.campaignId === b.id && l.websiteStatus === 'pending').length;
+        return p > bp ? c : b;
+      }, campaigns[0]);
+      setResearchCampaignId(best.id);
+    }
+  }, [campaigns, leads, researchCampaignId]);
+
+  // Auto-refresh while research runs
+  useEffect(() => {
+    if (!running) return;
+    const iv = setInterval(() => loadData(), 3000);
+    return () => clearInterval(iv);
+  }, [running]);
+
+  const startResearch = () => {
+    if (!researchCampaignId) return;
+    const campaign = campaigns.find(c => c.id === researchCampaignId);
+    if (campaign) research.startResearch(researchCampaignId, campaign.name, batchSize);
+  };
+
+  const verifyEmails = async () => {
+    if (!researchCampaignId) return;
+    setVerifying(true);
+    try {
+      const token = localStorage.getItem('relay_auth_token') || '';
+      const relayUrl = (import.meta as any).env?.VITE_RELAY_URL || 'https://api.theprovidersystem.com';
+      const resp = await fetch(relayUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+        body: JSON.stringify({ action: 'verify_emails_batch', campaign_id: researchCampaignId, batch_size: 500 }),
+      });
+      const data = await resp.json();
+      if (data.success) {
+        setTimeout(() => loadData(), 3000);
+        setTimeout(() => { loadData(); setVerifying(false); }, 8000);
+      } else setVerifying(false);
+    } catch { setVerifying(false); }
   };
 
 
