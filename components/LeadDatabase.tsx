@@ -22,6 +22,7 @@ const LeadDatabase: React.FC = () => {
   const [selectedLead, setSelectedLead] = useState<CampaignLead | null>(null);
   const [page, setPage] = useState(0);
   const [verifying, setVerifying] = useState(false);
+  const [pillExpanded, setPillExpanded] = useState(false);
   const [batchSize, setBatchSize] = useState(50);
   const [researchCampaignId, setResearchCampaignId] = useState<string>('');
 
@@ -501,49 +502,113 @@ const LeadDatabase: React.FC = () => {
 
       {/* Floating Research Pill */}
       {(research.isRunning || research.isComplete) && ReactDOM.createPortal(
-        <div className={`fixed bottom-6 right-6 z-[998] transition-all duration-300 ${research.isRunning ? 'animate-pulse' : ''}`}>
-          <div className="bg-[#0B3060] text-white rounded-2xl shadow-2xl border border-white/10 overflow-hidden min-w-[320px]">
-            <div className="px-4 py-3 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                {research.isRunning ? (
-                  <Loader2 size={18} className="animate-spin text-[#FF9F1C]" />
-                ) : (
-                  <CheckCircle size={18} className="text-emerald-400" />
-                )}
-                <div>
-                  <p className="text-sm font-bold">
-                    {research.isRunning ? 'Researching Leads...' : 'Research Complete!'}
-                  </p>
-                  <p className="text-[10px] text-white/60">
-                    {research.researched.toLocaleString()} researched · {research.pending.toLocaleString()} remaining
-                  </p>
-                </div>
-              </div>
-              {research.isRunning && (
-                <button onClick={research.stopResearch}
-                  className="px-3 py-1 bg-white/10 hover:bg-white/20 rounded-lg text-xs font-bold transition-all">
-                  Stop
-                </button>
+        <div className="fixed bottom-6 right-6 z-[998]">
+          {/* Collapsed pill — always visible, click to expand */}
+          {!pillExpanded ? (
+            <button onClick={() => setPillExpanded(true)}
+              className="bg-[#0B3060] text-white rounded-full shadow-2xl border border-white/10 px-4 py-2.5 flex items-center gap-3 hover:bg-[#0a2850] transition-all cursor-pointer">
+              {research.isRunning ? (
+                <Loader2 size={16} className="animate-spin text-[#FF9F1C]" />
+              ) : (
+                <CheckCircle size={16} className="text-emerald-400" />
               )}
-            </div>
-            {research.isRunning && (
-              <div className="px-4 pb-3">
-                <div className="w-full bg-white/10 rounded-full h-1.5 overflow-hidden">
+              <span className="text-xs font-bold">
+                {research.isRunning ? `Researching... ${research.researched.toLocaleString()}/${research.totalLeads.toLocaleString()}` : 'Research Complete!'}
+              </span>
+              {research.isRunning && (
+                <div className="w-16 bg-white/10 rounded-full h-1.5 overflow-hidden">
                   <div className="bg-[#FF9F1C] h-full rounded-full transition-all duration-500"
                     style={{ width: `${research.totalLeads > 0 ? (research.researched / research.totalLeads * 100) : 0}%` }} />
                 </div>
-                <div className="flex justify-between mt-1.5 text-[9px] text-white/40">
-                  <span>Avg Score: {research.avgScore.toFixed(1)}</span>
-                  <span>{research.noWebsite} no site · {research.crawled} crawled · {research.broken} errors</span>
+              )}
+            </button>
+          ) : (
+            /* Expanded panel — chat-bot style window */
+            <div className="bg-white rounded-2xl shadow-2xl border border-[#E2E8F0] w-[380px] overflow-hidden">
+              {/* Header */}
+              <div className="bg-[#0B3060] text-white px-4 py-3 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  {research.isRunning ? (
+                    <Loader2 size={16} className="animate-spin text-[#FF9F1C]" />
+                  ) : (
+                    <CheckCircle size={16} className="text-emerald-400" />
+                  )}
+                  <span className="text-sm font-bold">
+                    {research.isRunning ? 'Researching Leads' : 'Research Complete'}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  {research.isRunning && (
+                    <button onClick={(e) => { e.stopPropagation(); research.stopResearch(); }}
+                      className="px-2.5 py-1 bg-red-500/80 hover:bg-red-500 rounded-lg text-[10px] font-bold transition-all">
+                      Stop
+                    </button>
+                  )}
+                  <button onClick={() => setPillExpanded(false)}
+                    className="p-1 hover:bg-white/10 rounded-lg transition-all">
+                    <ChevronDown size={16} />
+                  </button>
                 </div>
               </div>
-            )}
-            {research.isComplete && (
-              <div className="px-4 pb-3 text-[10px] text-white/60">
-                Done! {research.researched.toLocaleString()} leads processed · Avg Score: {research.avgScore.toFixed(1)}
+
+              {/* Progress */}
+              <div className="px-4 py-3 border-b border-[#E2E8F0]">
+                <div className="w-full bg-gray-100 rounded-full h-2 overflow-hidden mb-2">
+                  <div className="bg-[#FF9F1C] h-full rounded-full transition-all duration-500"
+                    style={{ width: `${research.totalLeads > 0 ? (research.researched / research.totalLeads * 100) : 0}%` }} />
+                </div>
+                <div className="flex justify-between text-[11px] text-[#64748B]">
+                  <span>{research.researched.toLocaleString()} researched</span>
+                  <span>{research.pending.toLocaleString()} remaining</span>
+                </div>
               </div>
-            )}
-          </div>
+
+              {/* Stats grid */}
+              <div className="px-4 py-3 grid grid-cols-3 gap-3">
+                <div className="text-center">
+                  <p className="text-lg font-bold text-[#0B3060]">{research.avgScore.toFixed(1)}</p>
+                  <p className="text-[9px] text-[#94A3B8] font-bold uppercase">Avg Score</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-lg font-bold text-emerald-600">{research.crawled.toLocaleString()}</p>
+                  <p className="text-[9px] text-[#94A3B8] font-bold uppercase">Crawled</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-lg font-bold text-red-500">{research.broken.toLocaleString()}</p>
+                  <p className="text-[9px] text-[#94A3B8] font-bold uppercase">Errors</p>
+                </div>
+              </div>
+
+              {/* Breakdown */}
+              <div className="px-4 pb-3 space-y-1.5">
+                <div className="flex justify-between text-xs">
+                  <span className="text-[#64748B]">No Website</span>
+                  <span className="font-bold text-emerald-600">{research.noWebsite}</span>
+                </div>
+                <div className="flex justify-between text-xs">
+                  <span className="text-[#64748B]">Crawled Successfully</span>
+                  <span className="font-bold text-blue-600">{research.crawled}</span>
+                </div>
+                <div className="flex justify-between text-xs">
+                  <span className="text-[#64748B]">Errors / Unreachable</span>
+                  <span className="font-bold text-red-500">{research.broken}</span>
+                </div>
+                <div className="flex justify-between text-xs border-t border-[#E2E8F0] pt-1.5 mt-1.5">
+                  <span className="text-[#64748B] font-semibold">Total Processed</span>
+                  <span className="font-bold text-[#0B3060]">{research.researched.toLocaleString()}</span>
+                </div>
+              </div>
+
+              {research.isComplete && (
+                <div className="px-4 pb-3">
+                  <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-3 text-center">
+                    <p className="text-sm font-bold text-emerald-700">All done!</p>
+                    <p className="text-[10px] text-emerald-600 mt-0.5">{research.researched.toLocaleString()} leads processed · Avg Score: {research.avgScore.toFixed(1)}</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>,
         document.body
       )}
