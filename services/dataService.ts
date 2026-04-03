@@ -1,7 +1,7 @@
 import { supabase } from './supabase';
 import { Lead, Client, Deal, Payment, Session, Project, Task, Metric, ConfigItem, Contract, Campaign, CampaignLead, SuppressionEntry, SendLogEntry, TrackingEvent, Booking, CampaignStats, SendStatus, ResearchStats, PersonalizationStats, WebsiteAnalysis } from '../types';
 
-const RELAY_URL = import.meta.env.VITE_RELAY_URL || 'https://provider-os-production.up.railway.app';
+const RELAY_URL = import.meta.env.VITE_RELAY_URL || 'https://api.theprovidersystem.com';
 const RELAY_AUTH_TOKEN = import.meta.env.VITE_RELAY_AUTH_TOKEN || '';
 if (!RELAY_AUTH_TOKEN) console.warn("[dataService] WARNING: VITE_RELAY_AUTH_TOKEN is not set. Relay calls will fail with 401.");
 
@@ -1162,6 +1162,14 @@ export const createBookingViaRelay = async (leadInfo: {
 
 export const triggerResearchBatch = async (campaignId: string, batchSize = 50, leadIds?: string[]) => {
   return relayPost({ action: 'research_batch', campaign_id: campaignId, batch_size: batchSize, lead_ids: leadIds });
+};
+
+export const triggerResearchLeadsBatch = async (batchSize = 50) => {
+  return relayPost({ action: 'research_leads_batch', batch_size: batchSize });
+};
+
+export const triggerVerifyLeadsBatch = async (batchSize = 200) => {
+  return relayPost({ action: 'verify_leads_batch', batch_size: batchSize });
 };
 
 

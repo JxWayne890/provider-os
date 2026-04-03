@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useRef, useCallback } from 'react';
-import { triggerResearchBatch, fetchCampaignLeads, calculateResearchStats } from '../services/dataService';
+import { triggerResearchBatch, triggerResearchLeadsBatch, fetchCampaignLeads, calculateResearchStats, streamLeads } from '../services/dataService';
 import { CampaignLead } from '../types';
 
 interface RecentResult {
@@ -25,13 +25,14 @@ interface ResearchState {
   avgScore: number;
   recentResults: RecentResult[];
   startResearch: (campaignId: string, campaignName: string, batchSize: number, leadIds?: string[]) => void;
+  startLeadsResearch: (batchSize: number) => void;
   stopResearch: () => void;
 }
 
 const defaultState: ResearchState = {
   isRunning: false, isComplete: false, campaignId: null, campaignName: '',
   totalLeads: 0, researched: 0, pending: 0, noWebsite: 0, broken: 0, crawled: 0, avgScore: 0,
-  recentResults: [], startResearch: () => {}, stopResearch: () => {},
+  recentResults: [], startResearch: () => {}, startLeadsResearch: () => {}, stopResearch: () => {},
 };
 
 const ResearchCtx = createContext<ResearchState>(defaultState);
@@ -153,6 +154,62 @@ export const ResearchProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }, 8000);
   }, [isRunning, updateStats]);
 
+  const updateLeadsStats = useCallback(async () => {
+    try {
+      let allLeads: any[] = [];
+      await streamLeads((partial) => { allLeads = partial; });
+      const stats = calculateResearchStats(allLeads);
+      setTotalLeads(stats.total);
+      setResearched(stats.total - stats.pending);
+      setPending(stats.pending);
+      setNoWebsite(stats.noWebsite);
+      setBroken(stats.errors);
+      setCrawled(stats.crawled);
+      setAvgScore(stats.avgScore);
+    } catch (err) {
+      console.warn('Leads stats poll failed:', err);
+    }
+  }, []);
+
+  const startLeadsResearch = useCallback(async (batchSize: number) => {
+    if (isRunning) return;
+
+    stopRef.current = false;
+    setIsRunning(true);
+    setIsComplete(false);
+    setCampaignId(null);
+    setCampaignName('All Leads');
+    if (completeTimerRef.current) clearTimeout(completeTimerRef.current);
+
+    await updateLeadsStats();
+    pollRef.current = setInterval(() => updateLeadsStats(), 3000);
+
+    // Research loop
+    while (!stopRef.current) {
+      try {
+        const result = await triggerResearchLeadsBatch(batchSize);
+        if (!result.success || result.researched === 0) break;
+      } catch (err) {
+        console.warn('Research leads batch error:', err);
+        break;
+      }
+      const waitMs = Math.min(batchSize * 1500, 60000);
+      for (let w = 0; w < waitMs && !stopRef.current; w += 500) {
+        await new Promise(r => setTimeout(r, 500));
+      }
+    }
+
+    if (pollRef.current) clearInterval(pollRef.current);
+    pollRef.current = null;
+    await updateLeadsStats();
+    setIsRunning(false);
+    setIsComplete(true);
+
+    completeTimerRef.current = setTimeout(() => {
+      setIsComplete(false);
+    }, 8000);
+  }, [isRunning, updateLeadsStats]);
+
   const stopResearch = useCallback(() => {
     stopRef.current = true;
   }, []);
@@ -161,7 +218,7 @@ export const ResearchProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     <ResearchCtx.Provider value={{
       isRunning, isComplete, campaignId, campaignName,
       totalLeads, researched, pending, noWebsite, broken, crawled, avgScore,
-      recentResults, startResearch, stopResearch,
+      recentResults, startResearch, startLeadsResearch, stopResearch,
     }}>
       {children}
     </ResearchCtx.Provider>

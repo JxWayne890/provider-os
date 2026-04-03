@@ -1508,6 +1508,109 @@ const server = http.createServer(async (req, res) => {
                     })();
                 }
 
+                else if (action === 'research_leads_batch') {
+                    if (!supabase) throw new Error('Supabase not configured on relay');
+                    const { batch_size } = payload;
+                    const size = batch_size || 50;
+
+                    // Get pending leads from the leads table directly
+                    const { data: leads } = await supabase.from('leads')
+                        .select('*')
+                        .eq('website_status', 'pending')
+                        .limit(size);
+
+                    if (!leads || leads.length === 0) {
+                        res.end(JSON.stringify({ success: true, researched: 0, message: 'No pending leads to research' }));
+                        return;
+                    }
+
+                    // Respond immediately, process in background
+                    res.end(JSON.stringify({ success: true, researched: leads.length, message: 'Processing ' + leads.length + ' leads in background' }));
+
+                    // Background processing
+                    (async () => {
+                        let researched = 0;
+                        for (const lead of leads) {
+                            try {
+                                await supabase.from('leads').update({ website_status: 'crawling' }).eq('id', lead.id);
+
+                                // Run website research and email verification in parallel
+                                const [result, emailResult] = await Promise.all([
+                                    researchWebsite(lead.website, lead.id),
+                                    verifyEmail(lead.email),
+                                ]);
+
+                                await supabase.from('leads').update({
+                                    website_status: result.status,
+                                    website_score: result.score,
+                                    website_analysis: result.analysis,
+                                    email_status: emailResult.status,
+                                    email_valid: emailResult.valid,
+                                    email_verification: emailResult,
+                                    research_completed_at: new Date().toISOString(),
+                                }).eq('id', lead.id);
+
+                                // Also update campaign_leads if linked
+                                await supabase.from('campaign_leads').update({
+                                    website_status: result.status,
+                                    website_score: result.score,
+                                    website_analysis: result.analysis,
+                                    email_status: emailResult.status,
+                                    email_valid: emailResult.valid,
+                                    email_verification: emailResult,
+                                    research_completed_at: new Date().toISOString(),
+                                }).eq('lead_id', lead.id);
+
+                                researched++;
+                                if (researched < leads.length) await sleep(1000);
+                            } catch (err) {
+                                console.warn('Research failed for ' + lead.email + ':', err.message);
+                                await supabase.from('leads').update({
+                                    website_status: 'error', website_score: 6,
+                                }).eq('id', lead.id);
+                            }
+                        }
+                        console.log('[RESEARCH-LEADS] Batch complete: ' + researched + '/' + leads.length + ' leads researched');
+                    })();
+                }
+
+                else if (action === 'verify_leads_batch') {
+                    if (!supabase) throw new Error('Supabase not configured on relay');
+                    const { batch_size } = payload;
+                    const size = batch_size || 200;
+
+                    const { data: leads } = await supabase.from('leads')
+                        .select('id, email')
+                        .is('email_status', null)
+                        .limit(size);
+
+                    if (!leads || leads.length === 0) {
+                        res.end(JSON.stringify({ success: true, verified: 0, message: 'No leads pending email verification' }));
+                        return;
+                    }
+
+                    res.end(JSON.stringify({ success: true, verifying: leads.length, message: 'Verifying ' + leads.length + ' emails in background' }));
+
+                    (async () => {
+                        let verified = 0, valid = 0, invalid = 0;
+                        for (const lead of leads) {
+                            try {
+                                const result = await verifyEmail(lead.email);
+                                await supabase.from('leads').update({
+                                    email_status: result.status,
+                                    email_valid: result.valid,
+                                    email_verification: result,
+                                }).eq('id', lead.id);
+                                if (result.valid) valid++; else invalid++;
+                                verified++;
+                            } catch (err) {
+                                console.warn('Email verify failed for ' + lead.email + ':', err.message);
+                            }
+                        }
+                        console.log('[VERIFY-LEADS] Batch complete: ' + verified + ' verified (' + valid + ' valid, ' + invalid + ' invalid)');
+                    })();
+                }
+
 
                 else if (action === 'personalize_email') {
                     if (!supabase) throw new Error('Supabase not configured on relay');

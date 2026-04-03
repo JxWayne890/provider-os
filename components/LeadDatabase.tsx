@@ -57,13 +57,10 @@ const LeadDatabase: React.FC = () => {
   }, [running]);
 
   const startResearch = () => {
-    if (!researchCampaignId) return;
-    const campaign = campaigns.find(c => c.id === researchCampaignId);
-    if (campaign) research.startResearch(researchCampaignId, campaign.name, batchSize === -1 ? 99999 : batchSize);
+    research.startLeadsResearch(batchSize === -1 ? 99999 : batchSize);
   };
 
   const verifyEmails = async () => {
-    if (!researchCampaignId) return;
     setVerifying(true);
     try {
       const token = localStorage.getItem('relay_auth_token') || '';
@@ -71,7 +68,7 @@ const LeadDatabase: React.FC = () => {
       const resp = await fetch(relayUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
-        body: JSON.stringify({ action: 'verify_emails_batch', campaign_id: researchCampaignId, batch_size: 500 }),
+        body: JSON.stringify({ action: 'verify_leads_batch', batch_size: 500 }),
       });
       const data = await resp.json();
       if (data.success) {
@@ -178,18 +175,13 @@ const LeadDatabase: React.FC = () => {
       <div className="bg-white border border-[#E2E8F0] rounded-xl px-4 py-3">
         <div className="flex flex-col md:flex-row items-start md:items-center gap-3">
           <div className="flex items-center gap-2 flex-wrap flex-1">
-            <select value={researchCampaignId} onChange={e => setResearchCampaignId(e.target.value)}
-              className="text-xs bg-[#F7F8FA] border border-[#E2E8F0] rounded-lg px-3 py-2 outline-none font-medium text-[#1A1A2E]">
-              {campaigns.map(c => (
-                <option key={c.id} value={c.id}>{c.name} ({leads.filter(l => l.campaignId === c.id && l.websiteStatus === 'pending').length} pending)</option>
-              ))}
-            </select>
+            <span className="text-xs font-semibold text-[#0B3060]">{stats.pending.toLocaleString()} pending</span>
             <select value={batchSize} onChange={e => setBatchSize(Number(e.target.value))}
               className="text-xs bg-[#F7F8FA] border border-[#E2E8F0] rounded-lg px-2 py-2 outline-none font-medium text-[#1A1A2E] w-28">
               {BATCH_SIZES.map(s => <option key={s} value={s}>{s === -1 ? 'Entire List' : `${s} per batch`}</option>)}
             </select>
             {!running ? (
-              <button onClick={startResearch} disabled={!researchCampaignId}
+              <button onClick={startResearch} disabled={running}
                 className="flex items-center gap-1.5 px-3 py-2 bg-[#0B3060] text-white rounded-lg text-xs font-bold hover:bg-[#0a2850] transition-all disabled:opacity-50">
                 <Play size={12} /> Research
               </button>
@@ -199,7 +191,7 @@ const LeadDatabase: React.FC = () => {
                 <Pause size={12} /> Stop
               </button>
             )}
-            <button onClick={verifyEmails} disabled={verifying || running || !researchCampaignId}
+            <button onClick={verifyEmails} disabled={verifying || running}
               className="flex items-center gap-1.5 px-3 py-2 bg-emerald-600 text-white rounded-lg text-xs font-bold hover:bg-emerald-700 transition-all disabled:opacity-50">
               {verifying ? <Loader2 size={12} className="animate-spin" /> : <CheckCircle size={12} />}
               {verifying ? 'Verifying...' : 'Verify Emails'}
@@ -504,6 +496,55 @@ const LeadDatabase: React.FC = () => {
             </div>
           );
         })(),
+        document.body
+      )}
+
+      {/* Floating Research Pill */}
+      {(research.isRunning || research.isComplete) && ReactDOM.createPortal(
+        <div className={`fixed bottom-6 right-6 z-[998] transition-all duration-300 ${research.isRunning ? 'animate-pulse' : ''}`}>
+          <div className="bg-[#0B3060] text-white rounded-2xl shadow-2xl border border-white/10 overflow-hidden min-w-[320px]">
+            <div className="px-4 py-3 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                {research.isRunning ? (
+                  <Loader2 size={18} className="animate-spin text-[#FF9F1C]" />
+                ) : (
+                  <CheckCircle size={18} className="text-emerald-400" />
+                )}
+                <div>
+                  <p className="text-sm font-bold">
+                    {research.isRunning ? 'Researching Leads...' : 'Research Complete!'}
+                  </p>
+                  <p className="text-[10px] text-white/60">
+                    {research.researched.toLocaleString()} researched · {research.pending.toLocaleString()} remaining
+                  </p>
+                </div>
+              </div>
+              {research.isRunning && (
+                <button onClick={research.stopResearch}
+                  className="px-3 py-1 bg-white/10 hover:bg-white/20 rounded-lg text-xs font-bold transition-all">
+                  Stop
+                </button>
+              )}
+            </div>
+            {research.isRunning && (
+              <div className="px-4 pb-3">
+                <div className="w-full bg-white/10 rounded-full h-1.5 overflow-hidden">
+                  <div className="bg-[#FF9F1C] h-full rounded-full transition-all duration-500"
+                    style={{ width: `${research.totalLeads > 0 ? (research.researched / research.totalLeads * 100) : 0}%` }} />
+                </div>
+                <div className="flex justify-between mt-1.5 text-[9px] text-white/40">
+                  <span>Avg Score: {research.avgScore.toFixed(1)}</span>
+                  <span>{research.noWebsite} no site · {research.crawled} crawled · {research.broken} errors</span>
+                </div>
+              </div>
+            )}
+            {research.isComplete && (
+              <div className="px-4 pb-3 text-[10px] text-white/60">
+                Done! {research.researched.toLocaleString()} leads processed · Avg Score: {research.avgScore.toFixed(1)}
+              </div>
+            )}
+          </div>
+        </div>,
         document.body
       )}
     </div>
