@@ -6,7 +6,7 @@ import ReactDOM from 'react-dom';
 import LeadScoreBar from './LeadScoreBar';
 import { useResearch } from './ResearchContext';
 
-const BATCH_SIZES = [10, 25, 50, 100, 250, 500, 750, 1000, 1250, 1500];
+const BATCH_SIZES = [10, 25, 50, 100, 250, 500, 750, 1000, 1250, 1500, -1];
 const PAGE_SIZE = 50;
 
 const LeadDatabase: React.FC = () => {
@@ -59,7 +59,7 @@ const LeadDatabase: React.FC = () => {
   const startResearch = () => {
     if (!researchCampaignId) return;
     const campaign = campaigns.find(c => c.id === researchCampaignId);
-    if (campaign) research.startResearch(researchCampaignId, campaign.name, batchSize);
+    if (campaign) research.startResearch(researchCampaignId, campaign.name, batchSize === -1 ? 99999 : batchSize);
   };
 
   const verifyEmails = async () => {
@@ -186,7 +186,7 @@ const LeadDatabase: React.FC = () => {
             </select>
             <select value={batchSize} onChange={e => setBatchSize(Number(e.target.value))}
               className="text-xs bg-[#F7F8FA] border border-[#E2E8F0] rounded-lg px-2 py-2 outline-none font-medium text-[#1A1A2E] w-28">
-              {BATCH_SIZES.map(s => <option key={s} value={s}>{s} per batch</option>)}
+              {BATCH_SIZES.map(s => <option key={s} value={s}>{s === -1 ? 'Entire List' : `${s} per batch`}</option>)}
             </select>
             {!running ? (
               <button onClick={startResearch} disabled={!researchCampaignId}
