@@ -293,15 +293,12 @@ const LeadDatabase: React.FC = () => {
                 </th>
                 <th className="text-left py-3 px-3 text-[#64748B] font-semibold">Email</th>
                 <th className="text-left py-3 px-3 text-[#64748B] font-semibold">Location</th>
-                <th className="text-left py-3 px-3 text-[#64748B] font-semibold cursor-pointer hover:text-[#0B3060]" onClick={() => toggleSort('company')}>
-                  <span className="flex items-center gap-1">Company <SortIcon field="company" /></span>
+                <th className="text-left py-3 px-3 text-[#64748B] font-semibold cursor-pointer hover:text-[#0B3060]" onClick={() => toggleSort('score')}>
+                  <span className="flex items-center gap-1">Score <SortIcon field="score" /></span>
                 </th>
                 <th className="text-left py-3 px-3 text-[#64748B] font-semibold">Website</th>
-                <th className="text-left py-3 px-3 text-[#64748B] font-semibold">Email</th>
-                <th className="text-left py-3 px-3 text-[#64748B] font-semibold cursor-pointer hover:text-[#0B3060]" onClick={() => toggleSort('status')}>
-                  <span className="flex items-center gap-1">Status <SortIcon field="status" /></span>
-                </th>
-                <th className="text-left py-3 px-3 text-[#64748B] font-semibold">Campaign</th>
+                <th className="text-left py-3 px-3 text-[#64748B] font-semibold">Email Valid</th>
+                <th className="text-left py-3 px-3 text-[#64748B] font-semibold">Research</th>
               </tr>
             </thead>
             <tbody>
@@ -309,8 +306,9 @@ const LeadDatabase: React.FC = () => {
                 <tr key={lead.id} className="border-b border-[#E2E8F0]/50 hover:bg-[#F7F8FA] cursor-pointer transition-all"
                   onClick={() => setSelectedLead(selectedLead?.id === lead.id ? null : lead)}>
                   <td className="py-2.5 px-3"><p className="font-semibold text-[#1A1A2E]">{lead.companyName || '—'}</p></td>
-                  <td className="py-2.5 px-3 text-[#475569]">{lead.email}</td>
+                  <td className="py-2.5 px-3 text-[#475569] truncate max-w-[180px]">{lead.email}</td>
                   <td className="py-2.5 px-3 text-[#64748B]">{[lead.city, lead.state].filter(Boolean).join(', ') || '—'}</td>
+                  <td className="py-2.5 px-3"><LeadScoreBar score={lead.websiteScore} showLabel /></td>
                   <td className="py-2.5 px-3">
                     {lead.website ? <span className="text-[#64748B] truncate block max-w-[140px]">{lead.website.replace(/^https?:\/\//, '').replace(/\/$/, '')}</span>
                       : <span className="text-[#CBD5E1]">None</span>}
@@ -324,15 +322,12 @@ const LeadDatabase: React.FC = () => {
                   </td>
                   <td className="py-2.5 px-3">
                     <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${
-                      lead.sendStatus === SendStatus.SENT ? 'bg-blue-50 text-blue-600' :
-                      lead.sendStatus === SendStatus.OPENED ? 'bg-emerald-50 text-emerald-600' :
-                      lead.sendStatus === SendStatus.CLICKED ? 'bg-purple-50 text-purple-600' :
-                      lead.sendStatus === SendStatus.REPLIED ? 'bg-[#FF9F1C]/10 text-[#FF9F1C]' :
-                      lead.sendStatus === SendStatus.BOUNCED ? 'bg-red-50 text-red-600' :
+                      lead.websiteStatus === 'crawled' ? 'bg-emerald-50 text-emerald-600' :
+                      lead.websiteStatus === 'no_website' ? 'bg-red-50 text-red-500' :
+                      lead.websiteStatus === 'error' ? 'bg-amber-50 text-amber-600' :
                       'bg-gray-50 text-[#94A3B8]'
-                    }`}>{lead.sendStatus}</span>
+                    }`}>{lead.websiteStatus === 'pending' ? 'Pending' : lead.websiteStatus === 'crawled' ? 'Done' : lead.websiteStatus === 'no_website' ? 'No Site' : lead.websiteStatus}</span>
                   </td>
-                  <td className="py-2.5 px-3"><span className="text-[10px] text-[#94A3B8] truncate block max-w-[120px]">{campaignMap[lead.campaignId] || '—'}</span></td>
                 </tr>
               ))}
             </tbody>
@@ -380,9 +375,16 @@ const LeadDatabase: React.FC = () => {
                     </div>
                     <button onClick={() => setSelectedLead(null)} className="p-2 hover:bg-white/10 rounded-xl transition-all"><X size={20} /></button>
                   </div>
-                  <div className="flex items-center gap-4 mt-2 text-xs text-white/60">
-                    <div>Engagement Score: <span className="font-bold text-white">{selectedLead.engagementScore}</span></div>
-                    <div>Sent: <span className="font-bold text-white">{selectedLead.sentAt ? new Date(selectedLead.sentAt).toLocaleDateString() : 'No'}</span></div>
+                  <div className="flex items-center gap-4 mt-4">
+                    <div className={`text-3xl font-bold ${selectedLead.websiteScore >= 9 ? 'text-emerald-400' : selectedLead.websiteScore >= 7 ? 'text-amber-400' : selectedLead.websiteScore >= 5 ? 'text-blue-400' : 'text-gray-400'}`}>
+                      {selectedLead.websiteScore}/10
+                    </div>
+                    <div className="text-sm text-white/60">
+                      {selectedLead.websiteScore >= 9 ? 'Highest Priority — No website or unreachable' :
+                       selectedLead.websiteScore >= 7 ? 'High Priority — Major website issues' :
+                       selectedLead.websiteScore >= 5 ? 'Medium Priority — Missing SEO/city pages' :
+                       selectedLead.websiteScore >= 3 ? 'Lower Priority — Decent website' : 'Low Priority — Good website'}
+                    </div>
                   </div>
                 </div>
                 <div className="p-6 space-y-5">
