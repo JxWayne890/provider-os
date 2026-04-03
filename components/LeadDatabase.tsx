@@ -4,6 +4,7 @@ import { CampaignLead, Campaign, SendStatus } from '../types';
 import { fetchCampaigns, calculateResearchStats, streamAllCampaignLeads } from '../services/dataService';
 import ReactDOM from 'react-dom';
 import LeadScoreBar from './LeadScoreBar';
+import { useResearch } from './ResearchContext';
 
 const BATCH_SIZES = [10, 25, 50, 100, 250, 500];
 const PAGE_SIZE = 50;
