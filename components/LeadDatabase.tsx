@@ -42,6 +42,9 @@ const LeadDatabase: React.FC = () => {
     return m;
   }, [campaigns]);
 
+  const stats = useMemo(() => calculateResearchStats(leads), [leads]);
+  const progress = stats.total > 0 ? ((stats.total - stats.pending) / stats.total) * 100 : 0;
+
 
   const filtered = useMemo(() => {
     let result = leads;
