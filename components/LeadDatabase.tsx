@@ -131,6 +131,22 @@ const LeadDatabase: React.FC = () => {
     }
   };
 
+  const deepVerifySingle = async (leadId: string) => {
+    setSingleVerifying(true);
+    try {
+      const result = await triggerDeepVerifySingle(leadId);
+      console.log('[DeepVerify] Single result:', result);
+      // Refresh leads and update selected lead
+      const allLeads = await fetchAllLeads();
+      setLeads(allLeads);
+      const updated = allLeads.find(l => l.id === leadId);
+      if (updated) setSelectedLead(updated);
+    } catch (err) {
+      console.error('Deep verify single error:', err);
+    }
+    setSingleVerifying(false);
+  };
+
   const campaignMap = useMemo(() => {
     const m: Record<string, string> = {};
     campaigns.forEach(c => { m[c.id] = c.name; });
