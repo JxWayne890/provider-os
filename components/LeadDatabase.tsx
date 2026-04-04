@@ -172,64 +172,51 @@ const LeadDatabase: React.FC = () => {
         ))}
       </div>
 
-      {/* 3. Research Action Bar - Mobile Optimized */}
-      <div className="bg-white border border-[#E2E8F0] rounded-2xl p-4">
-        {/* Mobile: Stacked layout with big buttons */}
+      {/* 3. Research Toolbar */}
+      <div className="bg-white border border-[#E2E8F0] rounded-xl px-4 py-3">
         <div className="flex flex-col gap-3">
-          {/* Progress info */}
+          {/* Row 1: Status + Progress */}
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className={`w-3 h-3 rounded-full ${running ? 'bg-[#FF9F1C] animate-pulse' : stats.pending > 0 ? 'bg-blue-500' : 'bg-emerald-500'}`}></div>
-              <span className="text-sm font-bold text-[#0B3060]">{stats.pending.toLocaleString()} pending</span>
-            </div>
+            <span className="text-sm font-bold text-[#0B3060]">{stats.pending.toLocaleString()} pending</span>
             <span className="text-xs text-[#94A3B8]">{progress.toFixed(0)}% complete</span>
           </div>
-
-          {/* Progress bar */}
           {(running || progress > 0) && (
-            <div className="w-full bg-[#F7F8FA] rounded-full h-3 overflow-hidden border border-[#E2E8F0]">
-              <div className="bg-gradient-to-r from-[#FF9F1C] to-[#e8900a] h-full rounded-full transition-all duration-500 relative" style={{ width: `${Math.max(progress, 1)}%` }}>
-                {running && <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-pulse" />}
-              </div>
+            <div className="w-full bg-gray-100 rounded-full h-2 overflow-hidden">
+              <div className="bg-[#FF9F1C] h-full rounded-full transition-all duration-500" style={{ width: `${Math.max(progress, 1)}%` }} />
             </div>
           )}
 
-          {/* Action buttons row */}
-          <div className="flex flex-col sm:flex-row gap-2">
-            <div className="flex items-center gap-2 flex-1">
-              <select value={batchSize} onChange={e => setBatchSize(Number(e.target.value))}
-                className="text-sm bg-[#F7F8FA] border border-[#E2E8F0] rounded-xl px-3 py-3 outline-none font-medium text-[#1A1A2E] flex-1 sm:flex-none sm:w-36">
-                {BATCH_SIZES.map(s => <option key={s} value={s}>{s === -1 ? 'Entire List' : `${s} per batch`}</option>)}
-              </select>
-            </div>
-            <div className="flex gap-2 flex-1 sm:flex-none">
-              {!running ? (
-                <button onClick={startResearch} disabled={running}
-                  className="mobile-research-action bg-[#0B3060] text-white flex-1 sm:flex-none sm:px-6 rounded-xl disabled:opacity-50">
-                  <Play size={18} /> <span>Research</span>
-                </button>
-              ) : (
-                <button onClick={research.stopResearch}
-                  className="mobile-research-action bg-amber-500 text-white flex-1 sm:flex-none sm:px-6 rounded-xl">
-                  <Pause size={18} /> <span>Stop</span>
-                </button>
-              )}
-              <button onClick={verifyEmails} disabled={verifying || running}
-                className="mobile-research-action bg-emerald-600 text-white flex-1 sm:flex-none sm:px-6 rounded-xl disabled:opacity-50">
-                {verifying ? <Loader2 size={18} className="animate-spin" /> : <CheckCircle size={18} />}
-                <span>{verifying ? 'Verifying' : 'Verify'}</span>
+          {/* Row 2: Controls */}
+          <div className="flex flex-wrap items-center gap-2">
+            <select value={batchSize} onChange={e => setBatchSize(Number(e.target.value))}
+              className="text-xs bg-[#F7F8FA] border border-[#E2E8F0] rounded-lg px-3 py-2 outline-none font-medium text-[#1A1A2E]">
+              {BATCH_SIZES.map(s => <option key={s} value={s}>{s === -1 ? 'Entire List' : `${s} per batch`}</option>)}
+            </select>
+            {!running ? (
+              <button onClick={startResearch} disabled={stats.pending === 0}
+                className="flex items-center gap-1.5 px-4 py-2 bg-[#0B3060] text-white rounded-lg text-xs font-bold hover:bg-[#0a2850] transition-all disabled:opacity-50">
+                <Play size={14} /> Research
               </button>
-            </div>
+            ) : (
+              <button onClick={research.stopResearch}
+                className="flex items-center gap-1.5 px-4 py-2 bg-amber-500 text-white rounded-lg text-xs font-bold hover:bg-amber-600 transition-all">
+                <Pause size={14} /> Stop
+              </button>
+            )}
+            <button onClick={verifyEmails} disabled={verifying || running}
+              className="flex items-center gap-1.5 px-4 py-2 bg-emerald-600 text-white rounded-lg text-xs font-bold hover:bg-emerald-700 transition-all disabled:opacity-50">
+              {verifying ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle size={14} />}
+              {verifying ? 'Verifying...' : 'Verify Emails'}
+            </button>
+            {/* Email stats inline */}
+            {leads.some(l => l.emailStatus) && (
+              <div className="flex gap-3 ml-auto">
+                <span className="flex items-center gap-1 text-[10px]"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span><span className="text-emerald-700 font-semibold">{leads.filter(l => l.emailValid).length} valid</span></span>
+                <span className="flex items-center gap-1 text-[10px]"><span className="w-1.5 h-1.5 rounded-full bg-red-500"></span><span className="text-red-600 font-semibold">{leads.filter(l => l.emailStatus && !l.emailValid).length} bad</span></span>
+                <span className="flex items-center gap-1 text-[10px]"><span className="w-1.5 h-1.5 rounded-full bg-gray-300"></span><span className="text-gray-500">{leads.filter(l => !l.emailStatus).length} unchecked</span></span>
+              </div>
+            )}
           </div>
-
-          {/* Email verification summary */}
-          {leads.some(l => l.emailStatus) && (
-            <div className="flex gap-4 pt-2 border-t border-[#E2E8F0]">
-              <span className="flex items-center gap-1.5 text-xs"><span className="w-2 h-2 rounded-full bg-emerald-500"></span><span className="text-emerald-700 font-semibold">{leads.filter(l => l.emailValid).length} valid</span></span>
-              <span className="flex items-center gap-1.5 text-xs"><span className="w-2 h-2 rounded-full bg-red-500"></span><span className="text-red-600 font-semibold">{leads.filter(l => l.emailStatus && !l.emailValid).length} bad</span></span>
-              <span className="flex items-center gap-1.5 text-xs"><span className="w-2 h-2 rounded-full bg-gray-300"></span><span className="text-gray-500">{leads.filter(l => !l.emailStatus).length} unchecked</span></span>
-            </div>
-          )}
         </div>
       </div>
 
