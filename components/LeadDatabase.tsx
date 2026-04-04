@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Search, Globe, ExternalLink, ChevronDown, ChevronUp, X, ShieldAlert, Smartphone, FileCode, Clock, AlertTriangle, CheckCircle, XCircle, Play, Pause, Loader2, Filter, ArrowUpDown } from 'lucide-react';
 import { CampaignLead, Campaign, SendStatus } from '../types';
-import { fetchCampaigns, calculateResearchStats, streamLeads, fetchAllLeads } from '../services/dataService';
+import { fetchCampaigns, calculateResearchStats, fetchAllLeads } from '../services/dataService';
 import ReactDOM from 'react-dom';
 import LeadScoreBar from './LeadScoreBar';
 import { useResearch } from './ResearchContext';
@@ -13,7 +13,6 @@ const LeadDatabase: React.FC = () => {
   const [leads, setLeads] = useState<CampaignLead[]>([]);
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [loading, setLoading] = useState(true);
-  const initialLoadDone = React.useRef(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [scoreFilter, setScoreFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -36,17 +35,10 @@ const LeadDatabase: React.FC = () => {
   const loadData = async () => {
     const allCampaigns = await fetchCampaigns();
     setCampaigns(allCampaigns);
+    // Always fetch complete dataset, set state once — no flickering
+    const allLeads = await fetchAllLeads();
+    setLeads(allLeads);
     setLoading(false);
-
-    if (!initialLoadDone.current) {
-      // First load: stream page-by-page so data appears fast
-      await streamLeads((partialLeads) => setLeads(partialLeads));
-      initialLoadDone.current = true;
-    } else {
-      // Subsequent refreshes: fetch everything quietly, swap in at once (no flicker)
-      const allLeads = await fetchAllLeads();
-      setLeads(allLeads);
-    }
   };
 
   // Auto-select campaign with most pending leads
