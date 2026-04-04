@@ -1125,6 +1125,22 @@ export async function streamLeads(onPage: (leads: CampaignLead[], total: number)
   }
 }
 
+// --- Fetch all leads at once (for refreshes, no flickering) ---
+export async function fetchAllLeads(): Promise<CampaignLead[]> {
+  const PAGE_SIZE = 1000;
+  let allRows: any[] = [];
+  let from = 0;
+  while (true) {
+    const { data, error } = await supabase.from('leads').select('*').order('website_score', { ascending: false }).range(from, from + PAGE_SIZE - 1);
+    if (error) { console.error('fetchAllLeads error:', error); break; }
+    if (!data || data.length === 0) break;
+    allRows = allRows.concat(data);
+    if (data.length < PAGE_SIZE) break;
+    from += PAGE_SIZE;
+  }
+  return allRows.map(rowToLeadAsCampaignLead);
+}
+
 // --- Engagement Score Calculator ---
 
 export function calculateEngagementScore(lead: CampaignLead): number {
