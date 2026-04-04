@@ -23,6 +23,7 @@ const LeadDatabase: React.FC = () => {
   const [page, setPage] = useState(0);
   const [verifying, setVerifying] = useState(false);
   const [deepVerifying, setDeepVerifying] = useState(false);
+  const [deepVerifyMsg, setDeepVerifyMsg] = useState<string | null>(null);
   const [pillExpanded, setPillExpanded] = useState(false);
   const [batchSize, setBatchSize] = useState(50);
   const [researchCampaignId, setResearchCampaignId] = useState<string>('');
@@ -92,23 +93,39 @@ const LeadDatabase: React.FC = () => {
 
   const deepVerify = async (mode: 'websites' | 'emails' = 'websites') => {
     setDeepVerifying(true);
+    setDeepVerifyMsg(null);
     try {
-      const token = localStorage.getItem('relay_auth_token') || '';
-      const relayUrl = (import.meta as any).env?.VITE_RELAY_URL || 'https://api.theprovidersystem.com';
-      const resp = await fetch(relayUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
-        body: JSON.stringify({ action: 'deep_verify_batch', batch_size: 20, mode }),
-      });
-      const data = await resp.json();
+      const data = await triggerDeepVerifyBatch(20, mode);
       if (data.success) {
-        // Keep polling — deep verify takes longer
+        const count = data.verifying || data.verified || 0;
+        if (count === 0) {
+          setDeepVerifyMsg('No leads pending deep verification');
+          setDeepVerifying(false);
+          setTimeout(() => setDeepVerifyMsg(null), 5000);
+          return;
+        }
+        setDeepVerifyMsg('Deep verifying ' + count + ' leads via Perplexity AI...');
+        // Poll for updates while deep verify runs in background
         const poll = setInterval(async () => {
           await loadData();
         }, 5000);
-        setTimeout(() => { clearInterval(poll); loadData(); setDeepVerifying(false); }, 60000);
-      } else setDeepVerifying(false);
-    } catch { setDeepVerifying(false); }
+        setTimeout(() => {
+          clearInterval(poll);
+          loadData();
+          setDeepVerifying(false);
+          setDeepVerifyMsg('Deep verification batch complete!');
+          setTimeout(() => setDeepVerifyMsg(null), 5000);
+        }, 60000);
+      } else {
+        setDeepVerifyMsg('Deep verify failed: ' + (data.error || data.message || 'Unknown error'));
+        setDeepVerifying(false);
+        setTimeout(() => setDeepVerifyMsg(null), 8000);
+      }
+    } catch (err: any) {
+      setDeepVerifyMsg('Deep verify error: ' + (err.message || 'Request failed'));
+      setDeepVerifying(false);
+      setTimeout(() => setDeepVerifyMsg(null), 8000);
+    }
   };
 
   const campaignMap = useMemo(() => {
@@ -251,6 +268,19 @@ const LeadDatabase: React.FC = () => {
               </div>
             )}
           </div>
+          {/* Deep Verify Status Message */}
+          {deepVerifyMsg && (
+            <div className={`mt-2 px-4 py-2.5 rounded-xl text-sm font-medium flex items-center gap-2 ${
+              deepVerifyMsg.includes('error') || deepVerifyMsg.includes('failed') 
+                ? 'bg-red-50 text-red-700 border border-red-100' 
+                : deepVerifyMsg.includes('complete') 
+                  ? 'bg-emerald-50 text-emerald-700 border border-emerald-100'
+                  : 'bg-purple-50 text-purple-700 border border-purple-100'
+            }`}>
+              {deepVerifying && <Loader2 size={14} className="animate-spin" />}
+              {deepVerifyMsg}
+            </div>
+          )}
         </div>
       </div>
 
