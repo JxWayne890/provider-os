@@ -1108,6 +1108,13 @@ const rowToLeadAsCampaignLead = (r: any): CampaignLead => ({
   emailStatus: r.email_status,
   emailValid: r.email_valid,
   emailVerification: r.email_verification || undefined,
+  deepVerifyStatus: r.deep_verify_status,
+  verifiedWebsite: r.verified_website,
+  verifiedEmail: r.verified_email,
+  perplexityVerification: r.perplexity_verification,
+  deepVerifiedAt: r.deep_verified_at,
+  needsReview: r.needs_review,
+  reviewReason: r.review_reason,
 });
 
 export async function streamLeads(onPage: (leads: CampaignLead[], total: number) => void): Promise<void> {
@@ -1186,6 +1193,10 @@ export const triggerResearchLeadsBatch = async (batchSize = 50) => {
 
 export const triggerVerifyLeadsBatch = async (batchSize = 200) => {
   return relayPost({ action: 'verify_leads_batch', batch_size: batchSize });
+};
+
+export const triggerDeepVerifyBatch = async (batchSize = 20, mode: 'websites' | 'emails' = 'websites') => {
+  return relayPost({ action: 'deep_verify_batch', batch_size: batchSize, mode });
 };
 
 

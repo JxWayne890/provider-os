@@ -110,6 +110,14 @@ export interface CampaignLead {
   personalizationStatus: PersonalizationStatus;
   researchCompletedAt?: string;
   priorityRank: number;
+  // Deep verification fields
+  deepVerifyStatus?: string;
+  verifiedWebsite?: string;
+  verifiedEmail?: string;
+  perplexityVerification?: any;
+  deepVerifiedAt?: string;
+  needsReview?: boolean;
+  reviewReason?: string;
   // Email verification fields
   emailStatus?: string;
   emailValid?: boolean;

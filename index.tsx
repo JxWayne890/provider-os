@@ -1,6 +1,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
+import { ResearchProvider } from './components/ResearchContext';
 
 class ErrorBoundary extends React.Component<
   { children: React.ReactNode },
@@ -57,7 +58,9 @@ const root = ReactDOM.createRoot(rootElement);
 root.render(
   <React.StrictMode>
     <ErrorBoundary>
-      <App />
+      <ResearchProvider>
+        <App />
+      </ResearchProvider>
     </ErrorBoundary>
   </React.StrictMode>
 );

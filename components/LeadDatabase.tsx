@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Search, Globe, ExternalLink, ChevronDown, ChevronUp, X, ShieldAlert, Smartphone, FileCode, Clock, AlertTriangle, CheckCircle, XCircle, Play, Pause, Loader2, Filter, ArrowUpDown } from 'lucide-react';
 import { CampaignLead, Campaign, SendStatus } from '../types';
-import { fetchCampaigns, calculateResearchStats, fetchAllLeads } from '../services/dataService';
+import { fetchCampaigns, calculateResearchStats, fetchAllLeads, triggerDeepVerifyBatch } from '../services/dataService';
 import ReactDOM from 'react-dom';
 import LeadScoreBar from './LeadScoreBar';
 import { useResearch } from './ResearchContext';
@@ -22,6 +22,7 @@ const LeadDatabase: React.FC = () => {
   const [selectedLead, setSelectedLead] = useState<CampaignLead | null>(null);
   const [page, setPage] = useState(0);
   const [verifying, setVerifying] = useState(false);
+  const [deepVerifying, setDeepVerifying] = useState(false);
   const [pillExpanded, setPillExpanded] = useState(false);
   const [batchSize, setBatchSize] = useState(50);
   const [researchCampaignId, setResearchCampaignId] = useState<string>('');
@@ -62,12 +63,13 @@ const LeadDatabase: React.FC = () => {
 
   const startResearch = () => {
     console.log('[LeadDatabase] startResearch called, batchSize:', batchSize, 'running:', running, 'pending:', stats.pending);
-    try {
-      research.startLeadsResearch(batchSize === -1 ? 99999 : batchSize);
-      console.log('[LeadDatabase] startLeadsResearch called successfully');
-    } catch (err) {
-      console.error('[LeadDatabase] startResearch error:', err);
-    }
+    void research.startLeadsResearch(batchSize === -1 ? 99999 : batchSize)
+      .then(() => {
+        console.log('[LeadDatabase] startLeadsResearch completed');
+      })
+      .catch((err) => {
+        console.error('[LeadDatabase] startResearch error:', err);
+      });
   };
 
   const verifyEmails = async () => {
@@ -86,6 +88,27 @@ const LeadDatabase: React.FC = () => {
         setTimeout(() => { loadData(); setVerifying(false); }, 8000);
       } else setVerifying(false);
     } catch { setVerifying(false); }
+  };
+
+  const deepVerify = async (mode: 'websites' | 'emails' = 'websites') => {
+    setDeepVerifying(true);
+    try {
+      const token = localStorage.getItem('relay_auth_token') || '';
+      const relayUrl = (import.meta as any).env?.VITE_RELAY_URL || 'https://api.theprovidersystem.com';
+      const resp = await fetch(relayUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+        body: JSON.stringify({ action: 'deep_verify_batch', batch_size: 20, mode }),
+      });
+      const data = await resp.json();
+      if (data.success) {
+        // Keep polling — deep verify takes longer
+        const poll = setInterval(async () => {
+          await loadData();
+        }, 5000);
+        setTimeout(() => { clearInterval(poll); loadData(); setDeepVerifying(false); }, 60000);
+      } else setDeepVerifying(false);
+    } catch { setDeepVerifying(false); }
   };
 
   const campaignMap = useMemo(() => {
@@ -213,6 +236,11 @@ const LeadDatabase: React.FC = () => {
               className="flex items-center gap-1.5 px-4 py-2 bg-emerald-600 text-white rounded-lg text-xs font-bold hover:bg-emerald-700 transition-all disabled:opacity-50">
               {verifying ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle size={14} />}
               {verifying ? 'Verifying...' : 'Verify Emails'}
+            </button>
+            <button onClick={() => deepVerify('websites')} disabled={deepVerifying || running}
+              className="flex items-center gap-1.5 px-4 py-2 bg-purple-600 text-white rounded-lg text-xs font-bold hover:bg-purple-700 transition-all disabled:opacity-50">
+              {deepVerifying ? <Loader2 size={14} className="animate-spin" /> : <Search size={14} />}
+              {deepVerifying ? 'Deep Verifying...' : 'Deep Verify'}
             </button>
             {/* Email stats inline */}
             {leads.some(l => l.emailStatus) && (
@@ -561,6 +589,32 @@ const LeadDatabase: React.FC = () => {
                     <div className="p-4 bg-[#FF9F1C]/5 border border-[#FF9F1C]/10 rounded-2xl">
                       <h4 className="text-xs font-bold text-[#FF9F1C] uppercase tracking-wider mb-1">Assessment</h4>
                       <p className="text-sm text-[#0B3060] leading-relaxed">{a.overallAssessment}</p>
+                    </div>
+                  )}
+
+                  {/* Deep Verification Results */}
+                  {selectedLead.deepVerifyStatus && (
+                    <div className={`p-4 border rounded-xl ${selectedLead.needsReview ? 'bg-amber-50/50 border-amber-200' : 'bg-purple-50/50 border-purple-100'}`}>
+                      <h4 className="text-xs font-bold text-purple-600 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                        <Search size={14} /> Deep Verification — {selectedLead.deepVerifyStatus}
+                      </h4>
+                      {selectedLead.verifiedWebsite && (
+                        <p className="text-sm text-[#0B3060] mb-1">
+                          Found website: <a href={selectedLead.verifiedWebsite.startsWith('http') ? selectedLead.verifiedWebsite : 'https://' + selectedLead.verifiedWebsite} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">{selectedLead.verifiedWebsite}</a>
+                        </p>
+                      )}
+                      {selectedLead.verifiedEmail && selectedLead.verifiedEmail.toLowerCase() !== selectedLead.email.toLowerCase() && (
+                        <p className="text-sm text-[#0B3060] mb-1">
+                          Found email: <span className="font-semibold">{selectedLead.verifiedEmail}</span>
+                          <span className="text-[10px] text-amber-600 ml-2">(CSV had: {selectedLead.email})</span>
+                        </p>
+                      )}
+                      {selectedLead.needsReview && (
+                        <p className="text-xs text-amber-700 mt-2 font-medium">Needs review: {selectedLead.reviewReason}</p>
+                      )}
+                      {(selectedLead.perplexityVerification as any)?.notes && (
+                        <p className="text-xs text-[#64748B] mt-1">{(selectedLead.perplexityVerification as any).notes}</p>
+                      )}
                     </div>
                   )}
 

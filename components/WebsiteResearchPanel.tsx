@@ -108,7 +108,9 @@ const WebsiteResearchPanel: React.FC<WebsiteResearchPanelProps> = ({ campaignId,
 
   const startResearch = () => {
     const targetIds = selectedIds.size > 0 ? Array.from(selectedIds) : undefined;
-    research.startResearch(campaignId, campaignName, batchSize, targetIds);
+    void research.startResearch(campaignId, campaignName, batchSize, targetIds).catch((err) => {
+      console.error('[WebsiteResearchPanel] startResearch error:', err);
+    });
     if (targetIds) setSelectedIds(new Set());
   };
 

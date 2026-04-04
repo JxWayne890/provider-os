@@ -24,20 +24,20 @@ interface ResearchState {
   crawled: number;
   avgScore: number;
   recentResults: RecentResult[];
-  startResearch: (campaignId: string, campaignName: string, batchSize: number, leadIds?: string[]) => void;
-  startLeadsResearch: (batchSize: number) => void;
+  startResearch: (campaignId: string, campaignName: string, batchSize: number, leadIds?: string[]) => Promise<void>;
+  startLeadsResearch: (batchSize: number) => Promise<void>;
   stopResearch: () => void;
 }
 
-const defaultState: ResearchState = {
-  isRunning: false, isComplete: false, campaignId: null, campaignName: '',
-  totalLeads: 0, researched: 0, pending: 0, noWebsite: 0, broken: 0, crawled: 0, avgScore: 0,
-  recentResults: [], startResearch: () => {}, startLeadsResearch: () => {}, stopResearch: () => {},
+const ResearchCtx = createContext<ResearchState | null>(null);
+
+export const useResearch = () => {
+  const ctx = useContext(ResearchCtx);
+  if (!ctx) {
+    throw new Error('useResearch must be used within a ResearchProvider');
+  }
+  return ctx;
 };
-
-const ResearchCtx = createContext<ResearchState>(defaultState);
-
-export const useResearch = () => useContext(ResearchCtx);
 
 export const ResearchProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [isRunning, setIsRunning] = useState(false);
@@ -184,6 +184,9 @@ export const ResearchProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     setCampaignName('All Leads');
     if (completeTimerRef.current) clearTimeout(completeTimerRef.current);
     console.log('[ResearchContext] State set, starting research loop');
+
+    // Prime the UI immediately so the pill shows real totals as soon as research starts.
+    void updateLeadsStats().catch(e => console.warn('Initial stats poll error:', e));
 
     // Don't await stats before starting — just kick off polling
     pollRef.current = setInterval(() => {

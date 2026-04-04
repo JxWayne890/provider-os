@@ -22,6 +22,7 @@ const GOOGLE_CALENDAR_ID = process.env.GOOGLE_CALENDAR_ID || 'primary';
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || process.env.VITE_GOOGLE_API_KEY || "";
+const PERPLEXITY_API_KEY = process.env.PERPLEXITY_API_KEY || "";
 
 if (!RELAY_AUTH_TOKEN) {
     console.error('FATAL: RELAY_AUTH_TOKEN is not set. Server will reject all requests.');
@@ -364,6 +365,127 @@ async function verifyEmail(email) {
             return { valid: false, status: 'dns_timeout', mx_records: [], reason: 'DNS lookup timed out' };
         }
         return { valid: false, status: 'dns_error', mx_records: [], reason: 'DNS lookup failed: ' + err.message };
+    }
+}
+
+
+// --- Perplexity AI Deep Verification ---
+async function perplexitySearch(query) {
+    if (!PERPLEXITY_API_KEY) throw new Error('PERPLEXITY_API_KEY not configured');
+    
+    const response = await fetch('https://api.perplexity.ai/chat/completions', {
+        method: 'POST',
+        headers: {
+            'Authorization': 'Bearer ' + PERPLEXITY_API_KEY,
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            model: 'sonar',
+            messages: [
+                { role: 'system', content: 'You are a business research assistant. Return ONLY valid JSON, no markdown, no explanation. Always include all requested fields even if null.' },
+                { role: 'user', content: query }
+            ],
+            temperature: 0.1,
+            max_tokens: 500,
+        }),
+    });
+    
+    if (!response.ok) {
+        const err = await response.text();
+        throw new Error('Perplexity API error: ' + response.status + ' ' + err);
+    }
+    
+    const data = await response.json();
+    return data.choices?.[0]?.message?.content || '';
+}
+
+async function deepVerifyLead(lead) {
+    const company = lead.company_name || '';
+    const city = lead.city || '';
+    const state = lead.state || '';
+    const csvEmail = lead.email || '';
+    const csvWebsite = lead.website || '';
+    
+    const query = `Find the official website and contact email for the business "${company}" located in ${city}, ${state}. This is a med spa / aesthetics / wellness business.
+
+Return ONLY this JSON format:
+{
+  "website": "the actual website URL or null if not found",
+  "email": "the contact email or null if not found",
+  "phone": "the phone number or null if not found",
+  "confidence": "high/medium/low",
+  "notes": "brief note about what you found"
+}`;
+
+    try {
+        const raw = await perplexitySearch(query);
+        
+        // Parse JSON from response (handle markdown wrapping)
+        let cleaned = raw.trim();
+        if (cleaned.startsWith('```')) {
+            cleaned = cleaned.replace(/```json?/g, '').replace(/```/g, '').trim();
+        }
+        
+        let result;
+        try {
+            result = JSON.parse(cleaned);
+        } catch {
+            // Try to extract JSON from the response
+            const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
+            if (jsonMatch) {
+                result = JSON.parse(jsonMatch[0]);
+            } else {
+                return { status: 'error', error: 'Could not parse Perplexity response', raw: cleaned };
+            }
+        }
+        
+        const foundWebsite = result.website && result.website !== 'null' ? result.website.trim() : null;
+        const foundEmail = result.email && result.email !== 'null' ? result.email.trim() : null;
+        
+        // Determine what changed
+        let status = 'no_change';
+        let needsReview = false;
+        let reviewReason = null;
+        
+        // Check if we found a website for a lead that "had none"
+        if (foundWebsite && (!csvWebsite || csvWebsite === 'N/A' || csvWebsite === '-' || csvWebsite.trim() === '')) {
+            status = 'website_found';
+        }
+        
+        // Check if found website is different from CSV
+        if (foundWebsite && csvWebsite && csvWebsite.trim() !== '') {
+            const normalizeUrl = (u) => u.toLowerCase().replace(/^https?:\/\//, '').replace(/^www\./, '').replace(/\/+$/, '');
+            if (normalizeUrl(foundWebsite) !== normalizeUrl(csvWebsite)) {
+                status = 'website_found';
+                needsReview = true;
+                reviewReason = 'Perplexity found different website: ' + foundWebsite + ' (CSV had: ' + csvWebsite + ')';
+            }
+        }
+        
+        // Check email
+        if (foundEmail && foundEmail.toLowerCase() !== csvEmail.toLowerCase()) {
+            if (status === 'no_change') status = 'email_updated';
+            needsReview = true;
+            reviewReason = (reviewReason ? reviewReason + '; ' : '') + 'Perplexity found different email: ' + foundEmail + ' (CSV had: ' + csvEmail + ')';
+        }
+        
+        if (!foundWebsite && !foundEmail) {
+            status = 'verified'; // Perplexity also couldn't find anything — confirmed no website
+        }
+        
+        return {
+            status,
+            verified_website: foundWebsite,
+            verified_email: foundEmail,
+            phone: result.phone || null,
+            confidence: result.confidence || 'unknown',
+            notes: result.notes || '',
+            needs_review: needsReview,
+            review_reason: reviewReason,
+            raw_response: result,
+        };
+    } catch (err) {
+        return { status: 'error', error: err.message };
     }
 }
 
@@ -1611,6 +1733,100 @@ const server = http.createServer(async (req, res) => {
                     })();
                 }
 
+                else if (action === 'deep_verify_batch') {
+                    if (!supabase) throw new Error('Supabase not configured');
+                    if (!PERPLEXITY_API_KEY) throw new Error('PERPLEXITY_API_KEY not configured');
+                    
+                    const { batch_size, mode } = payload;
+                    const size = batch_size || 20;
+                    
+                    // mode: 'websites' = find missing websites, 'emails' = verify suspicious emails
+                    let query;
+                    if (mode === 'emails') {
+                        // Get leads with free provider emails or MX failures
+                        query = supabase.from('leads')
+                            .select('*')
+                            .is('deep_verify_status', null)
+                            .not('email_status', 'eq', 'business_email')
+                            .not('website_status', 'eq', 'pending')
+                            .limit(size);
+                    } else {
+                        // Default: find websites for leads marked as no_website or error
+                        query = supabase.from('leads')
+                            .select('*')
+                            .is('deep_verify_status', null)
+                            .in('website_status', ['no_website', 'error'])
+                            .limit(size);
+                    }
+                    
+                    const { data: leads } = await query;
+                    
+                    if (!leads || leads.length === 0) {
+                        res.end(JSON.stringify({ success: true, verified: 0, message: 'No leads pending deep verification' }));
+                        return;
+                    }
+                    
+                    res.end(JSON.stringify({ success: true, verifying: leads.length, message: 'Deep verifying ' + leads.length + ' leads in background' }));
+                    
+                    (async () => {
+                        let processed = 0;
+                        let websitesFound = 0;
+                        let emailsUpdated = 0;
+                        
+                        for (const lead of leads) {
+                            try {
+                                // Mark as processing
+                                await supabase.from('leads').update({ deep_verify_status: 'pending' }).eq('id', lead.id);
+                                
+                                const result = await deepVerifyLead(lead);
+                                
+                                const update = {
+                                    deep_verify_status: result.status,
+                                    perplexity_verification: result,
+                                    deep_verified_at: new Date().toISOString(),
+                                    needs_review: result.needs_review || false,
+                                    review_reason: result.review_reason || null,
+                                };
+                                
+                                if (result.verified_website) {
+                                    update.verified_website = result.verified_website;
+                                    websitesFound++;
+                                    
+                                    // If lead had no website, update the main website field and re-crawl
+                                    if (!lead.website || lead.website.trim() === '' || lead.website === 'N/A') {
+                                        update.website = result.verified_website;
+                                        update.website_status = 'pending'; // Will be re-crawled on next research run
+                                    }
+                                }
+                                
+                                if (result.verified_email) {
+                                    update.verified_email = result.verified_email;
+                                    if (result.verified_email.toLowerCase() !== lead.email.toLowerCase()) {
+                                        emailsUpdated++;
+                                    }
+                                }
+                                
+                                await supabase.from('leads').update(update).eq('id', lead.id);
+                                processed++;
+                                
+                                // Rate limit: ~1 request per second
+                                if (processed < leads.length) await sleep(1200);
+                                
+                            } catch (err) {
+                                console.warn('Deep verify failed for ' + lead.email + ':', err.message);
+                                await supabase.from('leads').update({
+                                    deep_verify_status: 'error',
+                                    perplexity_verification: { error: err.message },
+                                    deep_verified_at: new Date().toISOString(),
+                                }).eq('id', lead.id);
+                                processed++;
+                            }
+                        }
+                        
+                        console.log('[DEEP-VERIFY] Batch complete: ' + processed + ' processed, ' + websitesFound + ' websites found, ' + emailsUpdated + ' emails updated');
+                    })();
+                }
+
 
                 else if (action === 'personalize_email') {
                     if (!supabase) throw new Error('Supabase not configured on relay');
@@ -1898,6 +2114,7 @@ server.listen(PORT, '0.0.0.0', () => {
     console.log(`Auth: ${RELAY_AUTH_TOKEN ? 'ENABLED' : 'DISABLED (set RELAY_AUTH_TOKEN)'}`);
     console.log(`Stripe: ${STRIPE_API_KEY ? 'configured' : 'will use per-request key'}`);
     console.log(`Email: ${RESEND_API_KEY ? 'configured' : 'NOT configured'}`);
+    console.log(`Perplexity: ${PERPLEXITY_API_KEY ? 'configured' : 'NOT configured'}`);
     console.log(`Supabase: ${supabase ? 'configured' : 'NOT configured (outreach features disabled)'}`);
     console.log(`Tracking URL: ${TRACKING_BASE_URL}`);
 });
