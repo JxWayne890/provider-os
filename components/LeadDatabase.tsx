@@ -94,40 +94,59 @@ const LeadDatabase: React.FC = () => {
     } catch { setVerifying(false); }
   };
 
+  const deepVerifyPollRef = React.useRef<ReturnType<typeof setInterval> | null>(null);
+
   const deepVerify = async (mode: 'websites' | 'emails' = 'websites') => {
+    const size = batchSize === -1 ? 500 : batchSize;
     setDeepVerifying(true);
     setDeepVerifyMsg(null);
+    setDeepVerifyFeed([]);
+    setDeepVerifyExpanded(true);
     try {
-      const data = await triggerDeepVerifyBatch(20, mode);
+      const data = await triggerDeepVerifyBatch(size, mode);
       if (data.success) {
         const count = data.verifying || data.verified || 0;
         if (count === 0) {
           setDeepVerifyMsg('No leads pending deep verification');
           setDeepVerifying(false);
-          setTimeout(() => setDeepVerifyMsg(null), 5000);
           return;
         }
         setDeepVerifyMsg('Deep verifying ' + count + ' leads via Perplexity AI...');
-        // Poll for updates while deep verify runs in background
-        const poll = setInterval(async () => {
-          await loadData();
-        }, 5000);
+
+        // Poll for live feed updates
+        deepVerifyPollRef.current = setInterval(async () => {
+          const allLeads = await fetchAllLeads();
+          setLeads(allLeads);
+          // Build feed from recently verified leads
+          const verified = allLeads
+            .filter(l => l.deepVerifyStatus && l.deepVerifyStatus !== 'pending' && l.deepVerifiedAt)
+            .sort((a, b) => (b.deepVerifiedAt || '').localeCompare(a.deepVerifiedAt || ''))
+            .slice(0, 100);
+          setDeepVerifyFeed(verified.map(l => ({
+            company: l.companyName || l.email,
+            status: l.deepVerifyStatus || '',
+            website: l.verifiedWebsite || undefined,
+            email: l.verifiedEmail || undefined,
+            review: l.needsReview || false,
+          })));
+        }, 4000);
+
+        // Auto-stop after estimated time
+        const maxTime = Math.max(size * 2000, 30000);
         setTimeout(() => {
-          clearInterval(poll);
+          if (deepVerifyPollRef.current) clearInterval(deepVerifyPollRef.current);
+          deepVerifyPollRef.current = null;
           loadData();
           setDeepVerifying(false);
-          setDeepVerifyMsg('Deep verification batch complete!');
-          setTimeout(() => setDeepVerifyMsg(null), 5000);
-        }, 60000);
+          setDeepVerifyMsg('Deep verification complete! ' + count + ' leads processed.');
+        }, maxTime);
       } else {
         setDeepVerifyMsg('Deep verify failed: ' + (data.error || data.message || 'Unknown error'));
         setDeepVerifying(false);
-        setTimeout(() => setDeepVerifyMsg(null), 8000);
       }
     } catch (err: any) {
       setDeepVerifyMsg('Deep verify error: ' + (err.message || 'Request failed'));
       setDeepVerifying(false);
-      setTimeout(() => setDeepVerifyMsg(null), 8000);
     }
   };
 
