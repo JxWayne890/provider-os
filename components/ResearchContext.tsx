@@ -171,7 +171,11 @@ export const ResearchProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   }, []);
 
   const startLeadsResearch = useCallback(async (batchSize: number) => {
-    if (isRunning) return;
+    console.log('[ResearchContext] startLeadsResearch called, isRunning:', isRunning, 'batchSize:', batchSize);
+    if (isRunning) {
+      console.log('[ResearchContext] Already running, skipping');
+      return;
+    }
 
     stopRef.current = false;
     setIsRunning(true);
@@ -179,20 +183,29 @@ export const ResearchProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     setCampaignId(null);
     setCampaignName('All Leads');
     if (completeTimerRef.current) clearTimeout(completeTimerRef.current);
+    console.log('[ResearchContext] State set, starting research loop');
 
-    await updateLeadsStats();
-    pollRef.current = setInterval(() => updateLeadsStats(), 3000);
+    // Don't await stats before starting — just kick off polling
+    pollRef.current = setInterval(() => {
+      updateLeadsStats().catch(e => console.warn('Stats poll error:', e));
+    }, 5000);
 
-    // Research loop
+    // Research loop — send batches to the server
     while (!stopRef.current) {
       try {
+        console.log('[ResearchContext] Sending batch...');
         const result = await triggerResearchLeadsBatch(batchSize);
-        if (!result.success || result.researched === 0) break;
+        console.log('[ResearchContext] Batch result:', result);
+        if (!result.success || result.researched === 0) {
+          console.log('[ResearchContext] No more leads to research, stopping');
+          break;
+        }
       } catch (err) {
-        console.warn('Research leads batch error:', err);
+        console.error('[ResearchContext] Research batch error:', err);
         break;
       }
-      const waitMs = Math.min(batchSize * 1500, 60000);
+      // Wait for batch to process before sending next
+      const waitMs = Math.min(batchSize * 1200, 60000);
       for (let w = 0; w < waitMs && !stopRef.current; w += 500) {
         await new Promise(r => setTimeout(r, 500));
       }
@@ -200,9 +213,10 @@ export const ResearchProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
     if (pollRef.current) clearInterval(pollRef.current);
     pollRef.current = null;
-    await updateLeadsStats();
+    await updateLeadsStats().catch(() => {});
     setIsRunning(false);
     setIsComplete(true);
+    console.log('[ResearchContext] Research complete');
 
     completeTimerRef.current = setTimeout(() => {
       setIsComplete(false);

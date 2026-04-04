@@ -61,7 +61,13 @@ const LeadDatabase: React.FC = () => {
   }, [running]);
 
   const startResearch = () => {
-    research.startLeadsResearch(batchSize === -1 ? 99999 : batchSize);
+    console.log('[LeadDatabase] startResearch called, batchSize:', batchSize, 'running:', running, 'pending:', stats.pending);
+    try {
+      research.startLeadsResearch(batchSize === -1 ? 99999 : batchSize);
+      console.log('[LeadDatabase] startLeadsResearch called successfully');
+    } catch (err) {
+      console.error('[LeadDatabase] startResearch error:', err);
+    }
   };
 
   const verifyEmails = async () => {
