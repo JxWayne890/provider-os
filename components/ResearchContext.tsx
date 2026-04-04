@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useRef, useCallback } from 'react';
-import { triggerResearchBatch, triggerResearchLeadsBatch, fetchCampaignLeads, calculateResearchStats, streamLeads } from '../services/dataService';
+import { triggerResearchBatch, triggerResearchLeadsBatch, fetchCampaignLeads, calculateResearchStats, fetchAllLeads } from '../services/dataService';
 import { CampaignLead } from '../types';
 
 interface RecentResult {
@@ -156,8 +156,7 @@ export const ResearchProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   const updateLeadsStats = useCallback(async () => {
     try {
-      let allLeads: any[] = [];
-      await streamLeads((partial) => { allLeads = partial; });
+      const allLeads = await fetchAllLeads();
       const stats = calculateResearchStats(allLeads);
       setTotalLeads(stats.total);
       setResearched(stats.total - stats.pending);
