@@ -1827,6 +1827,44 @@ const server = http.createServer(async (req, res) => {
                     })();
                 }
 
+                else if (action === 'deep_verify_single') {
+                    if (!supabase) throw new Error('Supabase not configured');
+                    if (!PERPLEXITY_API_KEY) throw new Error('PERPLEXITY_API_KEY not configured');
+                    
+                    const { lead_id } = payload;
+                    if (!lead_id) throw new Error('lead_id required');
+                    
+                    const { data: lead } = await supabase.from('leads').select('*').eq('id', lead_id).single();
+                    if (!lead) throw new Error('Lead not found');
+                    
+                    await supabase.from('leads').update({ deep_verify_status: 'pending' }).eq('id', lead_id);
+                    
+                    const result = await deepVerifyLead(lead);
+                    
+                    const update = {
+                        deep_verify_status: result.status,
+                        perplexity_verification: result,
+                        deep_verified_at: new Date().toISOString(),
+                        needs_review: result.needs_review || false,
+                        review_reason: result.review_reason || null,
+                    };
+                    
+                    if (result.verified_website) {
+                        update.verified_website = result.verified_website;
+                        if (!lead.website || lead.website.trim() === '' || lead.website === 'N/A') {
+                            update.website = result.verified_website;
+                            update.website_status = 'pending';
+                        }
+                    }
+                    if (result.verified_email) {
+                        update.verified_email = result.verified_email;
+                    }
+                    
+                    await supabase.from('leads').update(update).eq('id', lead_id);
+                    
+                    res.end(JSON.stringify({ success: true, result }));
+                }
+
 
                 else if (action === 'personalize_email') {
                     if (!supabase) throw new Error('Supabase not configured on relay');

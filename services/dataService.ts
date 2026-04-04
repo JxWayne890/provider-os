@@ -1199,6 +1199,10 @@ export const triggerDeepVerifyBatch = async (batchSize = 20, mode: 'websites' | 
   return relayPost({ action: 'deep_verify_batch', batch_size: batchSize, mode });
 };
 
+export const triggerDeepVerifySingle = async (leadId: string) => {
+  return relayPost({ action: 'deep_verify_single', lead_id: leadId });
+};
+
 
 
 

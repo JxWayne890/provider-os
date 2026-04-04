@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Search, Globe, ExternalLink, ChevronDown, ChevronUp, X, ShieldAlert, Smartphone, FileCode, Clock, AlertTriangle, CheckCircle, XCircle, Play, Pause, Loader2, Filter, ArrowUpDown } from 'lucide-react';
 import { CampaignLead, Campaign, SendStatus } from '../types';
-import { fetchCampaigns, calculateResearchStats, fetchAllLeads, triggerDeepVerifyBatch } from '../services/dataService';
+import { fetchCampaigns, calculateResearchStats, fetchAllLeads, triggerDeepVerifyBatch, triggerDeepVerifySingle } from '../services/dataService';
 import ReactDOM from 'react-dom';
 import LeadScoreBar from './LeadScoreBar';
 import { useResearch } from './ResearchContext';
@@ -23,6 +23,9 @@ const LeadDatabase: React.FC = () => {
   const [page, setPage] = useState(0);
   const [verifying, setVerifying] = useState(false);
   const [deepVerifying, setDeepVerifying] = useState(false);
+  const [deepVerifyFeed, setDeepVerifyFeed] = useState<Array<{company: string; status: string; website?: string; email?: string; review?: boolean}>>([]);
+  const [deepVerifyExpanded, setDeepVerifyExpanded] = useState(false);
+  const [singleVerifying, setSingleVerifying] = useState(false);
   const [deepVerifyMsg, setDeepVerifyMsg] = useState<string | null>(null);
   const [pillExpanded, setPillExpanded] = useState(false);
   const [batchSize, setBatchSize] = useState(50);
@@ -257,7 +260,7 @@ const LeadDatabase: React.FC = () => {
             <button onClick={() => deepVerify('websites')} disabled={deepVerifying || running}
               className="flex items-center gap-1.5 px-4 py-2 bg-purple-600 text-white rounded-lg text-xs font-bold hover:bg-purple-700 transition-all disabled:opacity-50">
               {deepVerifying ? <Loader2 size={14} className="animate-spin" /> : <Search size={14} />}
-              {deepVerifying ? 'Deep Verifying...' : 'Deep Verify'}
+              {deepVerifying ? `Verifying (${deepVerifyFeed.length})...` : 'Deep Verify'}
             </button>
             {/* Email stats inline */}
             {leads.some(l => l.emailStatus) && (
@@ -405,6 +408,7 @@ const LeadDatabase: React.FC = () => {
                 <th className="text-left py-3 px-3 text-[#64748B] font-semibold">Website</th>
                 <th className="text-left py-3 px-3 text-[#64748B] font-semibold">Email Valid</th>
                 <th className="text-left py-3 px-3 text-[#64748B] font-semibold">Research</th>
+                <th className="text-left py-3 px-3 text-[#64748B] font-semibold">Verified</th>
               </tr>
             </thead>
             <tbody>
@@ -433,6 +437,23 @@ const LeadDatabase: React.FC = () => {
                       lead.websiteStatus === 'error' ? 'bg-amber-50 text-amber-600' :
                       'bg-gray-50 text-[#94A3B8]'
                     }`}>{lead.websiteStatus === 'pending' ? 'Pending' : lead.websiteStatus === 'crawled' ? 'Done' : lead.websiteStatus === 'no_website' ? 'No Site' : lead.websiteStatus}</span>
+                  </td>
+                  <td className="py-2.5 px-3">
+                    {lead.deepVerifyStatus ? (
+                      <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${
+                        lead.deepVerifyStatus === 'website_found' ? 'bg-purple-50 text-purple-600' :
+                        lead.deepVerifyStatus === 'verified' ? 'bg-blue-50 text-blue-600' :
+                        lead.deepVerifyStatus === 'email_updated' ? 'bg-purple-50 text-purple-600' :
+                        lead.deepVerifyStatus === 'no_change' ? 'bg-gray-50 text-gray-500' :
+                        lead.deepVerifyStatus === 'error' ? 'bg-red-50 text-red-500' :
+                        'bg-gray-50 text-[#94A3B8]'
+                      }`}>{lead.deepVerifyStatus === 'website_found' ? 'Found!' :
+                           lead.deepVerifyStatus === 'verified' ? 'Confirmed' :
+                           lead.deepVerifyStatus === 'email_updated' ? 'Email Found' :
+                           lead.deepVerifyStatus === 'no_change' ? 'No Change' :
+                           lead.deepVerifyStatus === 'pending' ? '...' :
+                           lead.deepVerifyStatus}</span>
+                    ) : <span className="text-[10px] text-[#CBD5E1]">—</span>}
                   </td>
                 </tr>
               ))}
@@ -693,6 +714,15 @@ const LeadDatabase: React.FC = () => {
                         <li key={i} className="text-sm text-[#0B3060] flex items-start gap-2"><XCircle size={14} className="text-red-400 mt-0.5 flex-shrink-0" />{issue}</li>
                       ))}</ul>
                     </div>
+                  )}
+
+                  {/* Deep Verify Button (for leads without website or with errors) */}
+                  {(selectedLead.websiteStatus === 'no_website' || selectedLead.websiteStatus === 'error') && !selectedLead.deepVerifyStatus && (
+                    <button onClick={() => deepVerifySingle(selectedLead.id)} disabled={singleVerifying}
+                      className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-purple-600 text-white rounded-xl text-sm font-bold hover:bg-purple-700 transition-all disabled:opacity-50">
+                      {singleVerifying ? <Loader2 size={16} className="animate-spin" /> : <Search size={16} />}
+                      {singleVerifying ? 'Searching with Perplexity AI...' : 'Deep Verify with Perplexity AI'}
+                    </button>
                   )}
 
                   {/* Key Findings */}
