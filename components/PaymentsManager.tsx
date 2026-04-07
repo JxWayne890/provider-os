@@ -9,6 +9,11 @@ interface PaymentsManagerProps {
 
 type TypeFilter = 'all' | 'Invoice' | 'One-time' | 'Subscription';
 
+const getPaymentSortTime = (payment: Payment) => {
+    const timestamp = new Date(payment.paidDate || payment.dueDate || '').getTime();
+    return Number.isNaN(timestamp) ? 0 : timestamp;
+};
+
 const PaymentsManager: React.FC<PaymentsManagerProps> = ({ payments, clients }) => {
     const [selectedPayment, setSelectedPayment] = useState<Payment | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
@@ -59,7 +64,7 @@ const PaymentsManager: React.FC<PaymentsManagerProps> = ({ payments, clients }) 
             return name.includes(term) || p.notes?.toLowerCase().includes(term) || p.stripeId?.toLowerCase().includes(term);
         }
         return true;
-    }).sort((a, b) => new Date(b.dueDate || '').getTime() - new Date(a.dueDate || '').getTime());
+    }).sort((a, b) => getPaymentSortTime(b) - getPaymentSortTime(a));
 
     const totalReceived = payments.filter(p => p.status === 'Paid').reduce((s, p) => s + p.amount, 0);
     const totalPending = payments.filter(p => p.status !== 'Paid').reduce((s, p) => s + p.amount, 0);
@@ -73,7 +78,7 @@ const PaymentsManager: React.FC<PaymentsManagerProps> = ({ payments, clients }) 
             <div className="flex justify-between items-end mb-4 animate-reveal">
                 <div>
                     <h2 className="text-4xl font-serif font-bold text-[#1A1A2E] tracking-tight">Revenue Operations</h2>
-                    <p className="text-[#64748B] text-sm mt-1">Live Stripe sync &middot; auto-updates every 30s</p>
+                    <p className="text-[#64748B] text-sm mt-1">Live Stripe sync &middot; auto-updates in the background</p>
                 </div>
             </div>
 

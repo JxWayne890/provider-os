@@ -9,9 +9,10 @@ interface ClientsManagerProps {
     projects: Project[];
     sessions: Session[];
     onUpdateClient?: (client: Client) => void;
+    onRefresh?: () => Promise<void>;
 }
 
-const ClientsManager: React.FC<ClientsManagerProps> = ({ clients, payments, projects, sessions, onUpdateClient }) => {
+const ClientsManager: React.FC<ClientsManagerProps> = ({ clients, payments, projects, sessions, onUpdateClient, onRefresh }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedClient, setSelectedClient] = useState<Client | null>(null);
     const [status, setStatus] = useState<{ type: 'success' | 'error', message: string } | null>(null);
@@ -27,6 +28,11 @@ const ClientsManager: React.FC<ClientsManagerProps> = ({ clients, payments, proj
 
     // New Client Engine state
     const [isNewClientModalOpen, setIsNewClientModalOpen] = useState(false);
+
+    const getPaymentSortTime = (payment: Payment) => {
+        const timestamp = new Date(payment.paidDate || payment.dueDate || '').getTime();
+        return Number.isNaN(timestamp) ? 0 : timestamp;
+    };
 
     // Compute real financials from payment data
     const getClientFinancials = (client: Client) => {
@@ -180,7 +186,7 @@ const ClientsManager: React.FC<ClientsManagerProps> = ({ clients, payments, proj
                 });
                 setInvAmount('');
                 setInvDesc('');
-                // Note: onRefresh isn't passed here, but App.tsx likely syncs. We can rely on user refreshing OR suggest onRefresh prop.
+                if (onRefresh) await onRefresh();
             }
         } catch (err: any) {
             setStatus({ type: 'error', message: err.message || "Invoice creation failed." });
@@ -397,7 +403,7 @@ const ClientsManager: React.FC<ClientsManagerProps> = ({ clients, payments, proj
             {/* Client Detail Modal */}
             {/* Client Detail Panel */}
             {selectedClient && (() => {
-                const cp = clientPayments.sort((a, b) => new Date(b.dueDate || '').getTime() - new Date(a.dueDate || '').getTime());
+                const cp = [...clientPayments].sort((a, b) => getPaymentSortTime(b) - getPaymentSortTime(a));
                 const totalPaid = cp.filter(p => p.status === 'Paid').reduce((s, p) => s + p.amount, 0);
                 const totalOpen = cp.filter(p => p.status === 'Open' || p.status === 'Past Due').reduce((s, p) => s + p.amount, 0);
                 const invoices = cp.filter(p => p.type === 'Invoice');

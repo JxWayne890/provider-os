@@ -26,7 +26,10 @@ import {
   fetchConfigs, fetchContracts,
   upsertLead, upsertContract,
   syncStripeData,
+  rowToClient,
+  rowToPayment,
 } from './services/dataService';
+import { supabase } from './services/supabase';
 import { Lead, Client, Payment, Session, Deal, Project, Task, Metric, ConfigItem, Contract } from './types';
 
 type Tab = 'dashboard' | 'crm' | 'leads_research' | 'deals' | 'payments' | 'payment_links' | 'sessions' | 'projects' | 'tasks' | 'contracts' | 'settings';
@@ -59,6 +62,44 @@ const NAV_SECTIONS = [
   },
 ];
 
+const mergeClientsByIdentity = (current: Client[], incoming: Client[]) => {
+  const merged = [...current];
+  incoming.forEach((client) => {
+    const existingIndex = merged.findIndex((existing) =>
+      (!!client.stripeCustomerId && existing.stripeCustomerId === client.stripeCustomerId) ||
+      (!!client.id && existing.id === client.id)
+    );
+
+    if (existingIndex >= 0) {
+      merged[existingIndex] = { ...merged[existingIndex], ...client };
+      return;
+    }
+
+    merged.push(client);
+  });
+
+  return merged;
+};
+
+const mergePaymentsByIdentity = (current: Payment[], incoming: Payment[]) => {
+  const merged = [...current];
+  incoming.forEach((payment) => {
+    const existingIndex = merged.findIndex((existing) =>
+      (!!payment.stripeId && existing.stripeId === payment.stripeId) ||
+      (!!payment.id && existing.id === payment.id)
+    );
+
+    if (existingIndex >= 0) {
+      merged[existingIndex] = { ...merged[existingIndex], ...payment };
+      return;
+    }
+
+    merged.push(payment);
+  });
+
+  return merged;
+};
+
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
 
@@ -85,6 +126,18 @@ const App: React.FC = () => {
   const [isActionMenuOpen, setIsActionMenuOpen] = useState(false);
   const [activeModal, setActiveModal] = useState<'payment_link' | 'invoice' | 'subscription' | null>(null);
 
+  const refreshStripeState = async () => {
+    const stripeData = await syncStripeData();
+
+    if (stripeData.clients.length > 0) {
+      setClients(prev => mergeClientsByIdentity(prev, stripeData.clients));
+    }
+
+    if (stripeData.payments.length > 0) {
+      setPayments(prev => mergePaymentsByIdentity(prev, stripeData.payments));
+    }
+  };
+
   // Global Data Synchronization
   const syncAllData = async () => {
     setIsLoading(true);
@@ -99,37 +152,27 @@ const App: React.FC = () => {
         fetchConfigs(), fetchContracts(),
       ]);
 
+      let nextClients = clientsData;
+      let nextPayments = paymentsData;
+
+      try {
+        const stripeData = await syncStripeData();
+        nextClients = mergeClientsByIdentity(clientsData, stripeData.clients);
+        nextPayments = mergePaymentsByIdentity(paymentsData, stripeData.payments);
+      } catch (stripeErr) {
+        console.warn('Stripe sync skipped:', stripeErr);
+      }
+
       setLeads(leadsData);
-      setClients(clientsData);
+      setClients(nextClients);
       setDeals(dealsData);
-      setPayments(paymentsData);
+      setPayments(nextPayments);
       setSessions(sessionsData);
       setProjects(projectsData);
       setTasks(tasksData);
       setMetrics(metricsData);
       setConfigs(configsData);
       setContracts(contractsData);
-
-      // Stripe sync — non-blocking
-      try {
-        const stripeData = await syncStripeData();
-        if (stripeData.clients.length > 0) {
-          setClients(prev => {
-            const existing = new Set(prev.map(c => c.stripeCustomerId).filter(Boolean));
-            const newClients = stripeData.clients.filter(sc => !existing.has(sc.stripeCustomerId));
-            return [...prev, ...newClients];
-          });
-        }
-        if (stripeData.payments.length > 0) {
-          setPayments(prev => {
-            const existing = new Set(prev.map(p => p.stripeId).filter(Boolean));
-            const newPayments = stripeData.payments.filter(sp => !existing.has(sp.stripeId));
-            return [...prev, ...newPayments];
-          });
-        }
-      } catch (stripeErr) {
-        console.warn('Stripe sync skipped:', stripeErr);
-      }
     } catch (err) {
       console.error("Critical Sync Failure:", err);
     } finally {
@@ -139,6 +182,66 @@ const App: React.FC = () => {
 
   useEffect(() => {
     syncAllData();
+  }, []);
+
+  // Keep billing data fresh even when payment activity happens outside the app.
+  useEffect(() => {
+    const runStripeRefresh = () => {
+      refreshStripeState().catch((err) => {
+        console.warn('Background Stripe sync skipped:', err);
+      });
+    };
+
+    const interval = window.setInterval(runStripeRefresh, 15000);
+    const handleFocus = () => runStripeRefresh();
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        runStripeRefresh();
+      }
+    };
+
+    window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, []);
+
+  useEffect(() => {
+    const billingChannel = supabase
+      .channel('provideros-billing-live-sync')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'payments' }, (payload) => {
+        if (payload.eventType === 'DELETE') {
+          const deleted = payload.old as { id?: string; stripe_id?: string };
+          setPayments(prev => prev.filter((payment) =>
+            payment.id !== deleted.id && payment.stripeId !== deleted.stripe_id
+          ));
+          return;
+        }
+
+        const nextPayment = rowToPayment(payload.new);
+        setPayments(prev => mergePaymentsByIdentity(prev, [nextPayment]));
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'clients' }, (payload) => {
+        if (payload.eventType === 'DELETE') {
+          const deleted = payload.old as { id?: string; stripe_customer_id?: string };
+          setClients(prev => prev.filter((client) =>
+            client.id !== deleted.id && client.stripeCustomerId !== deleted.stripe_customer_id
+          ));
+          return;
+        }
+
+        const nextClient = rowToClient(payload.new);
+        setClients(prev => mergeClientsByIdentity(prev, [nextClient]));
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(billingChannel);
+    };
   }, []);
 
   // Check for Signing Mode
@@ -459,6 +562,7 @@ const App: React.FC = () => {
                   projects={projects}
                   sessions={sessions}
                   onUpdateLead={updateLead}
+                  onRefresh={syncAllData}
                   onRequestLink={(lead) => { setActiveModal('payment_link'); }}
                 />
               )}

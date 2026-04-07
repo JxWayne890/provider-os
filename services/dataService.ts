@@ -49,7 +49,7 @@ const clientToRow = (c: Client) => ({
   stripe_customer_id: c.stripeCustomerId, notes: c.notes, health_score: c.healthScore,
 });
 
-const rowToClient = (r: any): Client => ({
+export const rowToClient = (r: any): Client => ({
   id: r.id, leadId: r.lead_id, companyName: r.company_name, primaryContact: r.primary_contact,
   email: r.email, phone: r.phone, status: r.status || 'Onboarding',
   servicePackage: r.service_package, billingType: r.billing_type,
@@ -79,7 +79,7 @@ const paymentToRow = (p: Payment) => ({
   stripe_link: p.stripeLink, notes: p.notes, project_id: p.projectId,
 });
 
-const rowToPayment = (r: any): Payment => ({
+export const rowToPayment = (r: any): Payment => ({
   id: r.id, clientId: r.client_id, stripeCustomerId: r.stripe_customer_id,
   stripeId: r.stripe_id, amount: Number(r.amount) || 0, currency: r.currency || 'usd',
   type: r.type, status: r.status, dueDate: r.due_date, paidDate: r.paid_date,
@@ -424,6 +424,16 @@ export const listStripeSubscriptions = async () => {
   }
 };
 
+export const listStripeCheckoutSessions = async () => {
+  try {
+    const data = await relayPost({ action: 'list_checkout_sessions' });
+    return data.sessions || [];
+  } catch (e) {
+    console.warn("[Stripe] Checkout sessions unavailable (relay offline?)");
+    return [];
+  }
+};
+
 export const getStripeBalance = async () => {
   try {
     const data = await relayPost({ action: 'get_balance' });
@@ -445,13 +455,34 @@ function safeDate(ts: any): string {
   catch { return new Date().toISOString().split("T")[0]; }
 }
 
+function stripeCustomerId(value: any): string {
+  if (!value) return '';
+  return typeof value === 'string' ? value : value.id || '';
+}
+
+function getInvoiceStatus(inv: any): Payment['status'] {
+  if (inv.status === 'paid') return 'Paid';
+  if (inv.status === 'void') return 'Voided';
+  if (inv.status === 'draft') return 'Draft';
+  if (inv.status === 'uncollectible') return 'Failed';
+  if (inv.status === 'open') {
+    if (typeof inv.due_date === 'number') {
+      const now = Date.now() / 1000;
+      return inv.due_date < now ? 'Past Due' : 'Open';
+    }
+    return 'Open';
+  }
+  return 'Failed';
+}
+
 export async function syncStripeData(): Promise<{ clients: Client[], payments: Payment[] }> {
   console.log("[STRIPE-SYNC] Starting Stripe sync...");
-  const [customers, charges, invoices, subscriptions] = await Promise.all([
+  const [customers, charges, invoices, subscriptions, checkoutSessions] = await Promise.all([
     listStripeCustomers(),
     listStripeCharges(),
     listStripeInvoices(),
     listStripeSubscriptions(),
+    listStripeCheckoutSessions(),
   ]);
 
   // Map Stripe customers → Client records
@@ -475,11 +506,11 @@ export async function syncStripeData(): Promise<{ clients: Client[], payments: P
 
   // Map Stripe charges → Payment records
   const chargePayments: Payment[] = charges
-    .filter((ch: any) => ch.status === 'succeeded')
+    .filter((ch: any) => ch.status === 'succeeded' && !ch.invoice && !(ch.description || '').toLowerCase().includes('payment for invoice'))
     .map((ch: any) => ({
       id: `ch-${ch.id}`,
-      clientId: customers.find((c: any) => c.id === (typeof ch.customer === 'string' ? ch.customer : ch.customer?.id))?.metadata?.clientId || `stripe-${typeof ch.customer === 'string' ? ch.customer : ch.customer?.id || 'unknown'}`,
-      stripeCustomerId: typeof ch.customer === 'string' ? ch.customer : ch.customer?.id || '',
+      clientId: customers.find((c: any) => c.id === stripeCustomerId(ch.customer))?.metadata?.clientId || `stripe-${stripeCustomerId(ch.customer) || 'unknown'}`,
+      stripeCustomerId: stripeCustomerId(ch.customer),
       stripeId: ch.id,
       amount: ch.amount / 100,
       currency: ch.currency,
@@ -494,24 +525,24 @@ export async function syncStripeData(): Promise<{ clients: Client[], payments: P
   // Map Stripe invoices → Payment records
   const invoicePayments: Payment[] = invoices.map((inv: any) => ({
     id: `inv-${inv.id}`,
-    clientId: customers.find((c: any) => c.id === (typeof inv.customer === 'string' ? inv.customer : inv.customer?.id))?.metadata?.clientId || `stripe-${typeof inv.customer === 'string' ? inv.customer : inv.customer?.id || 'unknown'}`,
-    stripeCustomerId: typeof inv.customer === 'string' ? inv.customer : inv.customer?.id || '',
+    clientId: customers.find((c: any) => c.id === stripeCustomerId(inv.customer))?.metadata?.clientId || `stripe-${stripeCustomerId(inv.customer) || 'unknown'}`,
+    stripeCustomerId: stripeCustomerId(inv.customer),
     stripeId: inv.id,
-    amount: (inv.amount_paid || inv.total || 0) / 100,
+    amount: (inv.total ?? inv.amount_due ?? inv.amount_paid ?? 0) / 100,
     currency: inv.currency,
     type: 'Invoice' as any,
-    status: inv.status === 'paid' ? 'Paid' : inv.status === 'open' ? 'Past Due' : 'Failed' as any,
-    dueDate: safeDate(inv.due_date || inv.created),
+    status: getInvoiceStatus(inv),
+    dueDate: safeDate(inv.due_date ?? inv.created),
     paidDate: inv.status_transitions?.paid_at ? safeDate(inv.status_transitions.paid_at) : undefined,
     stripeLink: inv.hosted_invoice_url || '',
-    notes: inv.description || `Invoice ${inv.number || ''}`,
+    notes: `${inv.number ? `#${inv.number}\n` : ''}${inv.description || `Invoice ${inv.id}`}`,
   }));
 
   // Map Stripe subscriptions → Payment records
   const subPayments: Payment[] = subscriptions.map((sub: any) => ({
     id: `sub-${sub.id}`,
-    clientId: customers.find((c: any) => c.id === (typeof sub.customer === 'string' ? sub.customer : sub.customer?.id))?.metadata?.clientId || `stripe-${typeof sub.customer === 'string' ? sub.customer : sub.customer?.id || 'unknown'}`,
-    stripeCustomerId: typeof sub.customer === 'string' ? sub.customer : sub.customer?.id || '',
+    clientId: customers.find((c: any) => c.id === stripeCustomerId(sub.customer))?.metadata?.clientId || `stripe-${stripeCustomerId(sub.customer) || 'unknown'}`,
+    stripeCustomerId: stripeCustomerId(sub.customer),
     stripeId: sub.id,
     amount: (sub.items?.data?.[0]?.price?.unit_amount || 0) / 100,
     currency: sub.currency,
@@ -523,8 +554,36 @@ export async function syncStripeData(): Promise<{ clients: Client[], payments: P
     notes: `${sub.items?.data?.[0]?.price?.recurring?.interval || 'recurring'} subscription`,
   }));
 
-  const allPayments = [...chargePayments, ...invoicePayments, ...subPayments];
-  console.log("[STRIPE-SYNC] Results:", { customers: customers.length, charges: charges.length, invoices: invoices.length, subscriptions: subscriptions.length, mappedClients: stripeClients.length, mappedPayments: allPayments.length });
+  // Map completed checkout sessions → Payment records (captures payment link payments)
+  const existingStripeIds = new Set([
+    ...chargePayments.map(p => p.stripeId),
+    ...invoicePayments.map(p => p.stripeId),
+  ]);
+  const sessionPayments: Payment[] = checkoutSessions
+    .filter((s: any) => s.status === 'complete' && s.payment_status === 'paid')
+    .filter((s: any) => {
+      // Skip if we already have this via charge or invoice
+      const pi = typeof s.payment_intent === 'string' ? s.payment_intent : s.payment_intent?.id;
+      const inv = typeof s.invoice === 'string' ? s.invoice : s.invoice?.id;
+      return !existingStripeIds.has(pi) && !existingStripeIds.has(inv);
+    })
+    .map((s: any) => ({
+      id: `cs-${s.id}`,
+      clientId: customers.find((c: any) => c.id === stripeCustomerId(s.customer))?.metadata?.clientId || `stripe-${stripeCustomerId(s.customer) || 'unknown'}`,
+      stripeCustomerId: stripeCustomerId(s.customer),
+      stripeId: s.id,
+      amount: (s.amount_total || 0) / 100,
+      currency: s.currency || 'usd',
+      type: 'One-time' as any,
+      status: 'Paid' as any,
+      dueDate: safeDate(s.created),
+      paidDate: safeDate(s.created),
+      stripeLink: s.url || '',
+      notes: s.metadata?.companyName ? `Payment from ${s.metadata.companyName}` : (s.customer_details?.name ? `Payment from ${s.customer_details.name}` : 'Payment link payment'),
+    }));
+
+  const allPayments = [...chargePayments, ...invoicePayments, ...subPayments, ...sessionPayments];
+  console.log("[STRIPE-SYNC] Results:", { customers: customers.length, charges: charges.length, invoices: invoices.length, subscriptions: subscriptions.length, checkoutSessions: checkoutSessions.length, mappedClients: stripeClients.length, mappedPayments: allPayments.length });
 
   // Upsert into Supabase for persistence
   await Promise.all([

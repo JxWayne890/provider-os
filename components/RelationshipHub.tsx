@@ -12,6 +12,7 @@ interface RelationshipHubProps {
     sessions: Session[];
     onUpdateLead: (updatedLead: Lead) => Promise<void>;
     onRequestLink?: (lead: Lead) => void;
+    onRefresh?: () => Promise<void>;
 }
 
 const RelationshipHub: React.FC<RelationshipHubProps> = ({
@@ -21,6 +22,7 @@ const RelationshipHub: React.FC<RelationshipHubProps> = ({
     projects,
     sessions,
     onUpdateLead,
+    onRefresh,
     onRequestLink
 }) => {
     const [view, setView] = useState<'pipeline' | 'portfolio'>('pipeline');
@@ -81,6 +83,7 @@ const RelationshipHub: React.FC<RelationshipHubProps> = ({
                             payments={payments}
                             projects={projects}
                             sessions={sessions}
+                            onRefresh={onRefresh}
                         />
                     </div>
                 )}

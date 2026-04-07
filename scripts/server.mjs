@@ -1170,7 +1170,7 @@ const server = http.createServer(async (req, res) => {
 
                     let invoice = await stripe.invoices.create({
                         customer: stripeCustomerId,
-                        auto_advance: true,
+                        auto_advance: false,
                         collection_method: 'send_invoice',
                         days_until_due: 7
                     });
@@ -1181,6 +1181,8 @@ const server = http.createServer(async (req, res) => {
                         invoice = await stripe.invoices.pay(invoice.id, {
                             paid_out_of_band: true
                         });
+                    } else {
+                        invoice = await stripe.invoices.sendInvoice(invoice.id);
                     }
 
                     res.end(JSON.stringify({
@@ -1218,6 +1220,11 @@ const server = http.createServer(async (req, res) => {
                     const stripe = getStripeClient(payload.stripeApiKey);
                     const subs = await stripe.subscriptions.list({ limit: 100 });
                     res.end(JSON.stringify({ success: true, subscriptions: subs.data }));
+                }
+                else if (action === 'list_checkout_sessions') {
+                    const stripe = getStripeClient(payload.stripeApiKey);
+                    const sessions = await stripe.checkout.sessions.list({ limit: 100 });
+                    res.end(JSON.stringify({ success: true, sessions: sessions.data }));
                 }
                 else if (action === 'send_email') {
                     if (!resend) {

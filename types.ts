@@ -299,7 +299,7 @@ export interface Payment {
   amount: number;
   currency: string;
   type: 'Invoice' | 'Subscription' | 'One-time';
-  status: 'Paid' | 'Failed' | 'Past Due' | 'Refunded';
+  status: 'Paid' | 'Failed' | 'Past Due' | 'Refunded' | 'Open' | 'Voided' | 'Draft';
   dueDate: string;
   paidDate?: string;
   stripeLink: string;
